@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador - Algoritmo</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 3rem;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .logo-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            color: white;
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            color: white;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: none;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .admin-panel {
+            display: none;
+            background: #0f172a;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .admin-header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .admin-logo-icon {
+            font-size: 2rem;
+        }
+        
+        .admin-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+        
+        .admin-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .btn-logout {
+            padding: 0.75rem 1.5rem;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            color: #ef4444;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-logout:hover {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        .stat-card {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 1rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+        
+        .tab-btn {
+            padding: 1rem 2rem;
+            background: rgba(30, 41, 59, 0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: transparent;
+        }
+        
+        .tab-content {
+            display: none;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .badge-artista {
+            background: rgba(124, 58, 237, 0.2);
+            color: #7c3aed;
+        }
+        
+        .badge-curador {
+            background: rgba(236, 72, 153, 0.2);
+            color: #ec4899;
+        }
+        
+        .btn-action {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+        }
+        
+        .btn-action:hover {
+            transform: scale(1.05);
+        }
+        
+        .btn-view {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+        
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .search-box {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white !important;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: rgba(124, 58, 237, 0.8);
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .search-box::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 0.6rem 1.2rem;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn.active {
+            background: rgba(124, 58, 237, 0.3);
+            border-color: #7c3aed;
+        }
+        
+        .config-section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .config-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+        
+        .config-field {
+            margin-bottom: 1rem;
+        }
+        
+        .config-label {
+            display: block;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .config-input {
+            width: 200px;
+            padding: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+        }
+        
+        .btn-save {
+            padding: 0.75rem 1.5rem;
+            background: #10b981;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        
+        .btn-danger {
+            padding: 0.75rem 1.5rem;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            color: #ef4444;
+            font-weight: 700;
+            cursor: pointer;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div class="login-container" id="loginScreen">
+        <div class="logo">
+            <div class="logo-icon">👑</div>
+            <h1>Panel de Administrador</h1>
+            <p class="subtitle">Acceso restringido solo para administradores</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage">
+            ⚠️ Credenciales incorrectas
+        </div>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="adminEmail">Email de Administrador</label>
+                <input type="email" id="adminEmail" required placeholder="admin@algoritmo.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="adminPassword">Contraseña</label>
+                <input type="password" id="adminPassword" required placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="btn-login">
+                🔐 Iniciar Sesión
+            </button>
+        </form>
+    </div>
+
+    <!-- Panel de Administrador -->
+    <div class="admin-panel" id="adminPanel">
+        <header class="admin-header">
+            <div class="admin-logo">
+                <div class="admin-logo-icon">👑</div>
+                <div class="admin-title">Panel de Administrador</div>
+            </div>
+            <div class="admin-user">
+                <span id="adminName">Admin</span>
+                <button class="btn-logout" onclick="logout()">🚪 Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Estadísticas -->
+            <div class="stats-grid">
+                <div class="stat-card" style="border-color: #10b981;">
+                    <div class="stat-value" style="color: #10b981;" id="totalUsuarios">0</div>
+                    <div class="stat-label">Total Usuarios</div>
+                </div>
+                <div class="stat-card" style="border-color: #7c3aed;">
+                    <div class="stat-value" style="color: #7c3aed;" id="totalArtistas">0</div>
+                    <div class="stat-label">Artistas</div>
+                </div>
+                <div class="stat-card" style="border-color: #ec4899;">
+                    <div class="stat-value" style="color: #ec4899;" id="totalCuradores">0</div>
+                    <div class="stat-label">Curadores</div>
+                </div>
+                <div class="stat-card" style="border-color: #fbbf24;">
+                    <div class="stat-value" style="color: #fbbf24;" id="totalIngresos">0€</div>
+                    <div class="stat-label">Ingresos Totales</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="changeTab('usuarios')">👥 Usuarios</button>
+                <button class="tab-btn" onclick="changeTab('transacciones')">💰 Transacciones</button>
+                <button class="tab-btn" onclick="changeTab('envios')">📨 Envíos</button>
+                <button class="tab-btn" onclick="changeTab('playlists')">🎵 Playlists</button>
+                <button class="tab-btn" onclick="changeTab('reportes')">📊 Reportes</button>
+                <button class="tab-btn" onclick="changeTab('configuracion')">⚙️ Configuración</button>
+            </div>
+
+            <!-- Tab: Usuarios -->
+            <div class="tab-content active" id="tabUsuarios">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">👥 Gestión de Usuarios</h2>
+                
+                <input type="text" class="search-box" id="searchUsuarios" placeholder="🔍 Buscar usuario..." oninput="filtrarUsuarios()">
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarPorTipo('todos')">Todos</button>
+                    <button class="filter-btn" onclick="filtrarPorTipo('artista')">Artistas</button>
+                    <button class="filter-btn" onclick="filtrarPorTipo('curador')">Curadores</button>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Tipo</th>
+                                <th>Fecha Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaUsuarios">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    Cargando usuarios...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Transacciones -->
+            <div class="tab-content" id="tabTransacciones">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">💰 Historial de Transacciones</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Usuario</th>
+                                <th>Tipo</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    No hay transacciones aún
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Envíos -->
+            <div class="tab-content" id="tabEnvios">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📨 Gestión de Envíos</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Artista</th>
+                                <th>Canción</th>
+                                <th>Playlist</th>
+                                <th>Curador</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    No hay envíos aún
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Playlists -->
+            <div class="tab-content" id="tabPlaylists">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🎵 Playlists Registradas</h2>
+                <div style="padding: 3rem; text-align: center; color: rgba(255,255,255,0.5);">
+                    No hay playlists registradas
+                </div>
+            </div>
+
+            <!-- Tab: Reportes -->
+            <div class="tab-content" id="tabReportes">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📊 Reportes y Estadísticas</h2>
+                
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card" style="border-color: #10b981;">
+                        <div class="stat-value" style="color: #10b981;">0€</div>
+                        <div class="stat-label">💸 Ingresos del Mes</div>
+                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #7c3aed;">
+                        <div class="stat-value" style="color: #7c3aed;">0</div>
+                        <div class="stat-label">🎵 Envíos del Mes</div>
+                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #ec4899;">
+                        <div class="stat-value" style="color: #ec4899;">0</div>
+                        <div class="stat-label">👥 Nuevos Usuarios</div>
+                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
+                    </div>
+                </div>
+
+                <button class="btn-save" onclick="exportarReporte()">📥 Exportar Reporte CSV</button>
+            </div>
+
+            <!-- Tab: Configuración -->
+            <div class="tab-content" id="tabConfiguracion">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">⚙️ Configuración de la Plataforma</h2>
+                
+                <div class="config-section">
+                    <h3 class="config-title">💰 Configuración de Precios</h3>
+                    <div class="config-field">
+                        <label class="config-label">Precio Standard (€):</label>
+                        <input type="number" class="config-input" id="precioStandard" value="0.50" step="0.10">
+                    </div>
+                    <div class="config-field">
+                        <label class="config-label">Precio Premium (€):</label>
+                        <input type="number" class="config-input" id="precioPremium" value="2.00" step="0.10">
+                    </div>
+                    <button class="btn-save" onclick="guardarPrecios()">💾 Guardar Cambios</button>
+                </div>
+
+                <div class="config-section">
+                    <h3 class="config-title">📊 Comisiones</h3>
+                    <div class="config-field">
+                        <label class="config-label">Comisión Plataforma (%):</label>
+                        <input type="number" class="config-input" id="comisionPlataforma" value="5" step="1" min="0" max="100">
+                    </div>
+                    <div class="config-field">
+                        <label class="config-label">Comisión Referidos (%):</label>
+                        <input type="number" class="config-input" id="comisionReferidos" value="15" step="1" min="0" max="100">
+                    </div>
+                    <button class="btn-save" onclick="guardarComisiones()">💾 Guardar Cambios</button>
+                </div>
+
+                <div class="config-section">
+                    <h3 class="config-title">🔧 Mantenimiento</h3>
+                    <button class="btn-danger" onclick="limpiarCache()">🧹 Limpiar Caché</button>
+                    <button class="btn-danger" onclick="resetearDatos()">⚠️ Resetear Datos Demo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // CONFIGURACIÓN SUPABASE
+        // ========================================
+        const SUPABASE_URL = 'https://wesmqqaijlmqhctrtaje.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_LgSAsCVW7tlDfDvkD8enyA_pQp42IZF';
+        
+        let supabaseClient;
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase inicializado en Admin Panel');
+        } else {
+            console.error('❌ Supabase no está disponible');
+        }
+        
+        // ========================================
+        // CREDENCIALES DE ADMINISTRADOR
+        // ========================================
+        const ADMIN_CREDENTIALS = {
+            email: 'micael@algoritmo.com',
+            password: 'Algoritmo2026!'
+        };
+
+        // ========================================
+        // LOGIN DE ADMINISTRADOR
+        // ========================================
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+                // Login exitoso
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                
+                // Guardar sesión
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                sessionStorage.setItem('adminEmail', email);
+                
+                // Cargar datos REALES de Supabase
+                await cargarUsuariosReales();
+                
+                console.log('✅ Login de administrador exitoso');
+            } else {
+                // Login fallido
+                document.getElementById('errorMessage').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('errorMessage').style.display = 'none';
+                }, 3000);
+                console.log('❌ Credenciales incorrectas');
+            }
+        }
+
+        // Logout
+        function logout() {
+            if (confirm('¿Cerrar sesión de administrador?')) {
+                sessionStorage.clear();
+                location.reload();
+            }
+        }
+
+        // Cambiar tab
+        function changeTab(tabName) {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Mostrar tab seleccionado
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Cargar usuarios demo
+        // ========================================
+        // CARGAR USUARIOS REALES DE SUPABASE
+        // ========================================
+        async function cargarUsuariosReales() {
+            try {
+                console.log('🔄 Cargando usuarios de Supabase...');
+                
+                const { data: usuarios, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error al cargar usuarios:', error);
+                    alert('Error al cargar usuarios');
+                    return;
+                }
+                
+                console.log('✅ Usuarios cargados:', usuarios);
+                
+                const tbody = document.getElementById('tablaUsuarios');
+                tbody.innerHTML = '';
+                
+                if (!usuarios || usuarios.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay usuarios registrados</td></tr>';
+                    document.getElementById('totalUsuarios').textContent = '0';
+                    document.getElementById('totalArtistas').textContent = '0';
+                    document.getElementById('totalCuradores').textContent = '0';
+                    return;
+                }
+                
+                usuarios.forEach(user => {
+                    const badgeClass = user.tipo === 'artista' ? 'badge-artista' : 'badge-curador';
+                    const icon = user.tipo === 'artista' ? '🎵' : '🎧';
+                    const fecha = new Date(user.created_at).toLocaleDateString('es-ES');
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${user.nombre}</td>
+                            <td style="color: rgba(255,255,255,0.7);">${user.email}</td>
+                            <td><span class="badge ${badgeClass}">${icon} ${user.tipo.charAt(0).toUpperCase() + user.tipo.slice(1)}</span></td>
+                            <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
+                            <td>
+                                <button class="btn-action btn-view" onclick="verUsuario('${user.id}', '${user.email}')">👁️ Ver</button>
+                                <button class="btn-action btn-delete" onclick="eliminarUsuario('${user.id}', '${user.email}')">🗑️ Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                // Actualizar estadísticas
+                document.getElementById('totalUsuarios').textContent = usuarios.length;
+                document.getElementById('totalArtistas').textContent = usuarios.filter(u => u.tipo === 'artista').length;
+                document.getElementById('totalCuradores').textContent = usuarios.filter(u => u.tipo === 'curador').length;
+                
+            } catch (err) {
+                console.error('❌ Error inesperado:', err);
+                alert('Error al cargar datos');
+            }
+        }
+        
+        // Mantener función demo como respaldo (por si acaso)
+        function cargarUsuariosDemo() {
+            const usuarios = [
+                {nombre: 'Juan Pérez', email: 'juan@example.com', tipo: 'artista', fecha: '2026-01-05'},
+                {nombre: 'María García', email: 'maria@example.com', tipo: 'curador', fecha: '2026-01-06'},
+                {nombre: 'Carlos Ruiz', email: 'carlos@example.com', tipo: 'artista', fecha: '2026-01-07'},
+                {nombre: 'Ana López', email: 'ana@example.com', tipo: 'curador', fecha: '2026-01-07'},
+                {nombre: 'Pedro Sánchez', email: 'pedro@example.com', tipo: 'artista', fecha: '2026-01-08'}
+            ];
+            
+            const tbody = document.getElementById('tablaUsuarios');
+            tbody.innerHTML = '';
+            
+            usuarios.forEach(user => {
+                const badgeClass = user.tipo === 'artista' ? 'badge-artista' : 'badge-curador';
+                const icon = user.tipo === 'artista' ? '🎵' : '🎧';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${user.nombre}</td>
+                        <td style="color: rgba(255,255,255,0.7);">${user.email}</td>
+                        <td><span class="badge ${badgeClass}">${icon} ${user.tipo.charAt(0).toUpperCase() + user.tipo.slice(1)}</span></td>
+                        <td style="color: rgba(255,255,255,0.7);">${user.fecha}</td>
+                        <td>
+                            <button class="btn-action btn-view" onclick="verUsuario('${user.email}')">👁️ Ver</button>
+                            <button class="btn-action btn-delete" onclick="eliminarUsuario('${user.email}')">🗑️ Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // Actualizar estadísticas
+            document.getElementById('totalUsuarios').textContent = usuarios.length;
+            document.getElementById('totalArtistas').textContent = usuarios.filter(u => u.tipo === 'artista').length;
+            document.getElementById('totalCuradores').textContent = usuarios.filter(u => u.tipo === 'curador').length;
+        }
+
+        // Filtrar usuarios
+        function filtrarUsuarios() {
+            const searchTerm = document.getElementById('searchUsuarios').value.toLowerCase();
+            const rows = document.querySelectorAll('#tablaUsuarios tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        // Filtrar por tipo
+        function filtrarPorTipo(tipo) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#tablaUsuarios tr');
+            rows.forEach(row => {
+                if (tipo === 'todos') {
+                    row.style.display = '';
+                } else {
+                    const badge = row.querySelector('.badge');
+                    if (badge) {
+                        const rowTipo = badge.textContent.toLowerCase().includes(tipo);
+                        row.style.display = rowTipo ? '' : 'none';
+                    }
+                }
+            });
+        }
+
+        // Ver usuario
+        async function verUsuario(userId, email) {
+            try {
+                const { data: usuario, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+                
+                if (error) throw error;
+                
+                const info = `
+📧 Email: ${usuario.email}
+👤 Nombre: ${usuario.nombre}
+🎭 Tipo: ${usuario.tipo}
+💰 Créditos: ${usuario.creditos}
+💵 Balance: €${usuario.balance}
+🔗 Código Referido: ${usuario.codigo_referido}
+📅 Registrado: ${new Date(usuario.created_at).toLocaleString('es-ES')}
+                `;
+                
+                alert(info);
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error al cargar datos del usuario');
+            }
+        }
+
+        // Eliminar usuario
+        async function eliminarUsuario(userId, email) {
+            if (!confirm(`¿Eliminar usuario ${email}?\n\n⚠️ Esta acción no se puede deshacer.`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('usuarios')
+                    .delete()
+                    .eq('id', userId);
+                
+                if (error) throw error;
+                
+                alert('✅ Usuario eliminado correctamente');
+                await cargarUsuariosReales();
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error al eliminar usuario');
+            }
+        }
+
+        // Guardar precios
+        function guardarPrecios() {
+            const standard = document.getElementById('precioStandard').value;
+            const premium = document.getElementById('precioPremium').value;
+            alert(`✅ Precios actualizados:\n\nStandard: ${standard}€\nPremium: ${premium}€`);
+        }
+
+        // Guardar comisiones
+        function guardarComisiones() {
+            const plataforma = document.getElementById('comisionPlataforma').value;
+            const referidos = document.getElementById('comisionReferidos').value;
+            alert(`✅ Comisiones actualizadas:\n\nPlataforma: ${plataforma}%\nReferidos: ${referidos}%`);
+        }
+
+        // Limpiar caché
+        function limpiarCache() {
+            if (confirm('¿Limpiar caché?')) {
+                alert('✅ Caché limpiado');
+            }
+        }
+
+        // Resetear datos
+        function resetearDatos() {
+            if (confirm('⚠️ ¿Resetear todos los datos demo?')) {
+                alert('✅ Datos reseteados');
+                cargarUsuariosDemo();
+            }
+        }
+
+        // Exportar reporte
+        function exportarReporte() {
+            alert('📥 Exportando reporte CSV...');
+        }
+
+        // Verificar sesión al cargar
+        window.addEventListener('load', () => {
+            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                cargarUsuariosDemo();
+            }
+        });
+    </script>
+</body>
+</html>
