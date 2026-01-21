@@ -142,6 +142,7 @@
             display: flex;
             gap: 1rem;
             margin-top: 1.5rem;
+            flex-wrap: wrap;
         }
         
         button {
@@ -156,6 +157,12 @@
         
         button:hover {
             transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .btn-verify {
@@ -192,6 +199,11 @@
             text-align: center;
             color: #666;
         }
+        
+        .empty h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -221,14 +233,15 @@
     <script>
         // CONFIGURACIÓN SUPABASE
         const SUPABASE_URL = 'https://wesmqqaijlmqhctrtaje.supabase.co';
-        const SUPABASE_SERVICE_ROLE_KEY = 'PEGA_AQUI_TU_SERVICE_ROLE_KEY'; // La obtienes de Settings → API
+        const SUPABASE_SECRET_KEY = 'PEGA_AQUI_TU_SECRET_KEY'; // Reemplaza con tu sb_secret_XXX
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
         
         // Cargar playlists pendientes
         async function cargarPlaylists() {
             try {
-                const { data: playlists, error } = await supabase
+                const { data: playlists, error } = await supabaseClient
                     .from('playlists')
                     .select(`
                         id,
@@ -245,7 +258,10 @@
                     .eq('estado', 'pendiente')
                     .order('created_at', { ascending: false });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Error:', error);
+                    throw error;
+                }
                 
                 const container = document.getElementById('playlistsContainer');
                 
@@ -256,6 +272,7 @@
                             <p>No hay playlists pendientes de aprobación</p>
                         </div>
                     `;
+                    document.getElementById('totalPendientes').textContent = '0';
                     return;
                 }
                 
@@ -265,11 +282,12 @@
                     <div class="playlist-card" id="playlist-${playlist.id}">
                         <div class="playlist-header">
                             <div>
-                                <div class="playlist-title">${playlist.nombre}</div>
+                                <div class="playlist-title">${playlist.nombre || 'Sin nombre'}</div>
                                 <div class="playlist-info">
                                     👤 Curador: <strong>${playlist.usuarios?.nombre || 'Desconocido'}</strong><br>
                                     📧 Email: ${playlist.usuarios?.email || 'N/A'}<br>
-                                    📅 Enviado: ${new Date(playlist.created_at).toLocaleString('es-ES')}
+                                    📅 Enviado: ${new Date(playlist.created_at).toLocaleString('es-ES')}<br>
+                                    🔗 ID: <code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.85rem;">${playlist.spotify_playlist_id || 'N/A'}</code>
                                 </div>
                             </div>
                             <span class="badge badge-pending">⏳ PENDIENTE</span>
@@ -278,10 +296,10 @@
                         <div id="spotifyData-${playlist.id}"></div>
                         
                         <div class="buttons">
-                            <button class="btn-verify" onclick="verificarPlaylist('${playlist.id}', '${playlist.spotify_playlist_id}')">
+                            <button class="btn-verify" onclick="verificarPlaylist('${playlist.id}', '${playlist.spotify_playlist_id || ''}')">
                                 🔍 Verificar en Spotify
                             </button>
-                            <button class="btn-spotify" onclick="window.open('${playlist.url_spotify}', '_blank')">
+                            <button class="btn-spotify" onclick="window.open('${playlist.url_spotify || '#'}', '_blank')">
                                 🎵 Abrir en Spotify
                             </button>
                             <button class="btn-approve" onclick="aprobarPlaylist('${playlist.id}')" id="btnAprobar-${playlist.id}" disabled>
@@ -295,19 +313,30 @@
                 `).join('');
                 
             } catch (err) {
-                console.error('Error:', err);
-                alert('Error cargando playlists: ' + err.message);
+                console.error('Error cargando playlists:', err);
+                document.getElementById('playlistsContainer').innerHTML = `
+                    <div class="empty">
+                        <h2>⚠️ Error</h2>
+                        <p>${err.message}</p>
+                        <p style="font-size: 0.85rem; margin-top: 1rem; color: #999;">Verifica la configuración de Supabase</p>
+                    </div>
+                `;
             }
         }
         
         // Verificar playlist en Spotify API
         async function verificarPlaylist(playlistId, spotifyId) {
+            if (!spotifyId) {
+                alert('⚠️ Esta playlist no tiene ID de Spotify');
+                return;
+            }
+            
             try {
                 const response = await fetch('https://wesmqqaijlmqhctrtaje.supabase.co/functions/v1/verificar-playlist-admin', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+                        'Authorization': `Bearer ${SUPABASE_SECRET_KEY}`
                     },
                     body: JSON.stringify({ playlistId: spotifyId })
                 });
@@ -345,7 +374,7 @@
                     </div>
                 `;
                 
-                // Guardar datos en atributos para usar al aprobar
+                // Habilitar botón de aprobar
                 const btn = document.getElementById(`btnAprobar-${playlistId}`);
                 btn.disabled = false;
                 btn.dataset.followers = playlist.followers;
@@ -353,7 +382,8 @@
                 btn.dataset.image = playlist.image || '';
                 
             } catch (err) {
-                alert('Error verificando: ' + err.message);
+                console.error('Error:', err);
+                alert('❌ Error verificando: ' + err.message);
             }
         }
         
@@ -364,12 +394,17 @@
             const name = btn.dataset.name;
             const image = btn.dataset.image;
             
+            if (!followers || !name) {
+                alert('⚠️ Primero verifica la playlist en Spotify');
+                return;
+            }
+            
             if (!confirm(`¿Aprobar esta playlist?\n\nNombre: ${name}\nSeguidores: ${followers}`)) {
                 return;
             }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('playlists')
                     .update({
                         estado: 'aprobada',
@@ -386,7 +421,8 @@
                 cargarPlaylists();
                 
             } catch (err) {
-                alert('Error aprobando: ' + err.message);
+                console.error('Error:', err);
+                alert('❌ Error aprobando: ' + err.message);
             }
         }
         
@@ -394,14 +430,21 @@
         async function rechazarPlaylist(playlistId) {
             const motivo = prompt('Motivo del rechazo:\n\nEjemplos:\n- La playlist no te pertenece\n- Datos incorrectos\n- Contenido inapropiado');
             
-            if (!motivo) return;
+            if (!motivo || motivo.trim() === '') {
+                alert('⚠️ Debes proporcionar un motivo');
+                return;
+            }
+            
+            if (!confirm(`¿Rechazar esta playlist?\n\nMotivo: ${motivo}`)) {
+                return;
+            }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('playlists')
                     .update({
                         estado: 'rechazada',
-                        motivo_rechazo: motivo
+                        motivo_rechazo: motivo.trim()
                     })
                     .eq('id', playlistId);
                 
@@ -411,7 +454,8 @@
                 cargarPlaylists();
                 
             } catch (err) {
-                alert('Error rechazando: ' + err.message);
+                console.error('Error:', err);
+                alert('❌ Error rechazando: ' + err.message);
             }
         }
         
