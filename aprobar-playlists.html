@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprobar Playlists - ALGORITMO Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .playlist-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .playlist-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+        
+        .playlist-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .playlist-info {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .spotify-data {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .spotify-data h3 {
+            color: #166534;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .data-item {
+            padding: 0.75rem;
+            background: white;
+            border-radius: 0.5rem;
+        }
+        
+        .data-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+        
+        .data-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-verify {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-approve {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-spotify {
+            background: #1db954;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 3rem;
+        }
+        
+        .empty {
+            background: white;
+            border-radius: 1rem;
+            padding: 3rem;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Aprobar Playlists - ALGORITMO</h1>
+        
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalPendientes">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalAprobadas">0</div>
+                <div class="stat-label">Aprobadas hoy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalRechazadas">0</div>
+                <div class="stat-label">Rechazadas hoy</div>
+            </div>
+        </div>
+        
+        <div id="playlistsContainer">
+            <div class="loading">⏳ Cargando playlists...</div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN SUPABASE
+        const SUPABASE_URL = 'https://wesmqqaijlmqhctrtaje.supabase.co';
+        const SUPABASE_SERVICE_ROLE_KEY = 'PEGA_AQUI_TU_SERVICE_ROLE_KEY'; // La obtienes de Settings → API
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        
+        // Cargar playlists pendientes
+        async function cargarPlaylists() {
+            try {
+                const { data: playlists, error } = await supabase
+                    .from('playlists')
+                    .select(`
+                        id,
+                        nombre,
+                        url_spotify,
+                        spotify_playlist_id,
+                        followers,
+                        created_at,
+                        usuarios!playlists_curador_id_fkey (
+                            nombre,
+                            email
+                        )
+                    `)
+                    .eq('estado', 'pendiente')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const container = document.getElementById('playlistsContainer');
+                
+                if (!playlists || playlists.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty">
+                            <h2>✅ ¡Todo revisado!</h2>
+                            <p>No hay playlists pendientes de aprobación</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                document.getElementById('totalPendientes').textContent = playlists.length;
+                
+                container.innerHTML = playlists.map(playlist => `
+                    <div class="playlist-card" id="playlist-${playlist.id}">
+                        <div class="playlist-header">
+                            <div>
+                                <div class="playlist-title">${playlist.nombre}</div>
+                                <div class="playlist-info">
+                                    👤 Curador: <strong>${playlist.usuarios?.nombre || 'Desconocido'}</strong><br>
+                                    📧 Email: ${playlist.usuarios?.email || 'N/A'}<br>
+                                    📅 Enviado: ${new Date(playlist.created_at).toLocaleString('es-ES')}
+                                </div>
+                            </div>
+                            <span class="badge badge-pending">⏳ PENDIENTE</span>
+                        </div>
+                        
+                        <div id="spotifyData-${playlist.id}"></div>
+                        
+                        <div class="buttons">
+                            <button class="btn-verify" onclick="verificarPlaylist('${playlist.id}', '${playlist.spotify_playlist_id}')">
+                                🔍 Verificar en Spotify
+                            </button>
+                            <button class="btn-spotify" onclick="window.open('${playlist.url_spotify}', '_blank')">
+                                🎵 Abrir en Spotify
+                            </button>
+                            <button class="btn-approve" onclick="aprobarPlaylist('${playlist.id}')" id="btnAprobar-${playlist.id}" disabled>
+                                ✅ Aprobar
+                            </button>
+                            <button class="btn-reject" onclick="rechazarPlaylist('${playlist.id}')">
+                                ❌ Rechazar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error cargando playlists: ' + err.message);
+            }
+        }
+        
+        // Verificar playlist en Spotify API
+        async function verificarPlaylist(playlistId, spotifyId) {
+            try {
+                const response = await fetch('https://wesmqqaijlmqhctrtaje.supabase.co/functions/v1/verificar-playlist-admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+                    },
+                    body: JSON.stringify({ playlistId: spotifyId })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error verificando');
+                }
+                
+                const playlist = result.playlist;
+                
+                // Mostrar datos verificados
+                document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
+                    <div class="spotify-data">
+                        <h3>✅ Datos verificados de Spotify</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-label">Nombre real</div>
+                                <div class="data-value">${playlist.name}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Seguidores</div>
+                                <div class="data-value">${playlist.followers.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Dueño</div>
+                                <div class="data-value">${playlist.owner}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Canciones</div>
+                                <div class="data-value">${playlist.tracks}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Guardar datos en atributos para usar al aprobar
+                const btn = document.getElementById(`btnAprobar-${playlistId}`);
+                btn.disabled = false;
+                btn.dataset.followers = playlist.followers;
+                btn.dataset.name = playlist.name;
+                btn.dataset.image = playlist.image || '';
+                
+            } catch (err) {
+                alert('Error verificando: ' + err.message);
+            }
+        }
+        
+        // Aprobar playlist
+        async function aprobarPlaylist(playlistId) {
+            const btn = document.getElementById(`btnAprobar-${playlistId}`);
+            const followers = btn.dataset.followers;
+            const name = btn.dataset.name;
+            const image = btn.dataset.image;
+            
+            if (!confirm(`¿Aprobar esta playlist?\n\nNombre: ${name}\nSeguidores: ${followers}`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('playlists')
+                    .update({
+                        estado: 'aprobada',
+                        followers: parseInt(followers),
+                        nombre: name,
+                        imagen_url: image,
+                        ultima_actualizacion: new Date().toISOString()
+                    })
+                    .eq('id', playlistId);
+                
+                if (error) throw error;
+                
+                alert('✅ Playlist aprobada correctamente');
+                cargarPlaylists();
+                
+            } catch (err) {
+                alert('Error aprobando: ' + err.message);
+            }
+        }
+        
+        // Rechazar playlist
+        async function rechazarPlaylist(playlistId) {
+            const motivo = prompt('Motivo del rechazo:\n\nEjemplos:\n- La playlist no te pertenece\n- Datos incorrectos\n- Contenido inapropiado');
+            
+            if (!motivo) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('playlists')
+                    .update({
+                        estado: 'rechazada',
+                        motivo_rechazo: motivo
+                    })
+                    .eq('id', playlistId);
+                
+                if (error) throw error;
+                
+                alert('❌ Playlist rechazada');
+                cargarPlaylists();
+                
+            } catch (err) {
+                alert('Error rechazando: ' + err.message);
+            }
+        }
+        
+        // Cargar al inicio
+        cargarPlaylists();
+        
+        // Recargar cada 30 segundos
+        setInterval(cargarPlaylists, 30000);
+    </script>
+</body>
+</html>
