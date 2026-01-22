@@ -1325,22 +1325,18 @@
             try {
                 console.log('🔄 Cargando transacciones...');
                 
+                // Primero obtenemos las transacciones sin relaciones
                 const { data: transacciones, error } = await supabaseClient
                     .from('transacciones')
-                    .select(`
-                        id,
-                        tipo,
-                        monto,
-                        estado,
-                        created_at,
-                        usuario:usuario_id (nombre, email, tipo)
-                    `)
+                    .select('*')
                     .order('created_at', { ascending: false });
                 
                 if (error) {
                     console.error('❌ Error:', error);
                     throw error;
                 }
+
+                console.log('📊 Transacciones obtenidas:', transacciones);
                 
                 const tbody = document.getElementById('tablaTransacciones');
                 
@@ -1349,36 +1345,60 @@
                     return;
                 }
                 
+                // Obtener IDs únicos de usuarios para buscar sus datos
+                const usuarioIds = [...new Set(transacciones.map(t => t.usuario_id).filter(Boolean))];
+                
+                // Buscar datos de usuarios
+                let usuariosMap = {};
+                if (usuarioIds.length > 0) {
+                    const { data: usuarios } = await supabaseClient
+                        .from('usuarios')
+                        .select('id, nombre, email')
+                        .in('id', usuarioIds);
+                    
+                    if (usuarios) {
+                        usuarios.forEach(u => {
+                            usuariosMap[u.id] = u;
+                        });
+                    }
+                }
+                
                 tbody.innerHTML = '';
                 
                 transacciones.forEach(trans => {
                     let estadoBadge = '';
                     let estadoClass = '';
                     
-                    if (trans.estado === 'completado') {
+                    const estado = (trans.estado || '').toLowerCase();
+                    
+                    if (estado === 'completado' || estado === 'completada') {
                         estadoBadge = '✅ Completado';
                         estadoClass = 'badge-aprobada';
-                    } else if (trans.estado === 'pendiente') {
+                    } else if (estado === 'pendiente') {
                         estadoBadge = '⏳ Pendiente';
                         estadoClass = 'badge-pendiente';
-                    } else if (trans.estado === 'cancelado') {
+                    } else if (estado === 'cancelado' || estado === 'cancelada') {
                         estadoBadge = '❌ Cancelado';
+                        estadoClass = 'badge';
+                    } else {
+                        estadoBadge = estado || 'N/A';
                         estadoClass = 'badge';
                     }
                     
-                    const fecha = new Date(trans.created_at).toLocaleDateString('es-ES');
+                    const fecha = trans.created_at ? new Date(trans.created_at).toLocaleDateString('es-ES') : 'N/A';
+                    const usuario = usuariosMap[trans.usuario_id] || {};
                     
                     tbody.innerHTML += `
-                        <tr data-estado="${trans.estado}">
+                        <tr data-estado="${estado}">
                             <td>
-                                <strong>${trans.usuario?.nombre || 'Desconocido'}</strong><br>
-                                <small style="color: rgba(255,255,255,0.6);">${trans.usuario?.email || 'N/A'}</small>
+                                <strong>${usuario.nombre || trans.usuario_nombre || 'Desconocido'}</strong><br>
+                                <small style="color: rgba(255,255,255,0.6);">${usuario.email || trans.usuario_email || 'N/A'}</small>
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">
-                                ${trans.tipo || 'N/A'}
+                                ${trans.tipo || trans.concepto || 'N/A'}
                             </td>
                             <td>
-                                <strong style="color: #10b981;">${trans.monto}€</strong>
+                                <strong style="color: #10b981;">${trans.monto || trans.cantidad || 0}€</strong>
                             </td>
                             <td>
                                 <span class="badge ${estadoClass}">${estadoBadge}</span>
@@ -1393,7 +1413,7 @@
             } catch (err) {
                 console.error('❌ Error:', err);
                 document.getElementById('tablaTransacciones').innerHTML = `
-                    <tr><td colspan="5" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar transacciones</td></tr>
+                    <tr><td colspan="5" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar transacciones: ${err.message}</td></tr>
                 `;
             }
         }
@@ -1425,26 +1445,18 @@
             try {
                 console.log('🔄 Cargando envíos...');
                 
+                // La tabla envios tiene toda la info directamente (no necesita envios_canciones)
                 const { data: envios, error } = await supabaseClient
                     .from('envios')
-                    .select(`
-                        id,
-                        estado,
-                        created_at,
-                        artista:artista_id (nombre, email),
-                        playlist:playlist_id (nombre),
-                        curador:curador_id (nombre, email),
-                        envios_canciones (
-                            nombre_cancion,
-                            url_spotify
-                        )
-                    `)
+                    .select('*')
                     .order('created_at', { ascending: false });
                 
                 if (error) {
                     console.error('❌ Error:', error);
                     throw error;
                 }
+
+                console.log('📊 Envíos obtenidos:', envios);
                 
                 const tbody = document.getElementById('tablaEnvios');
                 
@@ -1453,42 +1465,92 @@
                     return;
                 }
                 
+                // Obtener IDs únicos para buscar nombres
+                const artistaIds = [...new Set(envios.map(e => e.artista_id).filter(Boolean))];
+                const curadorIds = [...new Set(envios.map(e => e.curador_id).filter(Boolean))];
+                const playlistIds = [...new Set(envios.map(e => e.playlist_id).filter(Boolean))];
+                
+                // Buscar datos de artistas y curadores
+                let usuariosMap = {};
+                const allUserIds = [...new Set([...artistaIds, ...curadorIds])];
+                if (allUserIds.length > 0) {
+                    const { data: usuarios } = await supabaseClient
+                        .from('usuarios')
+                        .select('id, nombre, email')
+                        .in('id', allUserIds);
+                    
+                    if (usuarios) {
+                        usuarios.forEach(u => {
+                            usuariosMap[u.id] = u;
+                        });
+                    }
+                }
+                
+                // Buscar nombres de playlists
+                let playlistsMap = {};
+                if (playlistIds.length > 0) {
+                    const { data: playlists } = await supabaseClient
+                        .from('playlists')
+                        .select('id, nombre')
+                        .in('id', playlistIds);
+                    
+                    if (playlists) {
+                        playlists.forEach(p => {
+                            playlistsMap[p.id] = p;
+                        });
+                    }
+                }
+                
                 tbody.innerHTML = '';
                 
                 envios.forEach(envio => {
                     let estadoBadge = '';
                     let estadoClass = '';
                     
-                    if (envio.estado === 'aceptado') {
+                    const estado = (envio.estado || '').toLowerCase();
+                    
+                    if (estado === 'aceptado' || estado === 'aprobado') {
                         estadoBadge = '✅ Aceptado';
                         estadoClass = 'badge-aprobada';
-                    } else if (envio.estado === 'pendiente') {
+                    } else if (estado === 'pendiente') {
                         estadoBadge = '⏳ Pendiente';
                         estadoClass = 'badge-pendiente';
-                    } else if (envio.estado === 'rechazado') {
+                    } else if (estado === 'rechazado') {
                         estadoBadge = '❌ Rechazado';
+                        estadoClass = 'badge';
+                    } else {
+                        estadoBadge = estado || 'N/A';
                         estadoClass = 'badge';
                     }
                     
-                    const fecha = new Date(envio.created_at).toLocaleDateString('es-ES');
-                    const cancion = envio.envios_canciones?.[0];
+                    const fecha = envio.created_at ? new Date(envio.created_at).toLocaleDateString('es-ES') : 
+                                  envio.fecha_envio ? new Date(envio.fecha_envio).toLocaleDateString('es-ES') : 'N/A';
+                    
+                    const artista = usuariosMap[envio.artista_id] || {};
+                    const curador = usuariosMap[envio.curador_id] || {};
+                    const playlist = playlistsMap[envio.playlist_id] || {};
+                    
+                    // Los datos de la canción están directamente en la tabla envios
+                    const nombreCancion = envio.cancion_nombre || envio.nombre_cancion || 'Sin nombre';
+                    const urlCancion = envio.cancion_url || envio.url_spotify || '';
+                    const nombreArtista = envio.artista_nombre || artista.nombre || 'Desconocido';
                     
                     tbody.innerHTML += `
-                        <tr data-estado="${envio.estado}">
+                        <tr data-estado="${estado}">
                             <td>
-                                <strong>${envio.artista?.nombre || 'Desconocido'}</strong><br>
-                                <small style="color: rgba(255,255,255,0.6);">${envio.artista?.email || 'N/A'}</small>
+                                <strong>${nombreArtista}</strong><br>
+                                <small style="color: rgba(255,255,255,0.6);">${artista.email || 'N/A'}</small>
                             </td>
                             <td>
-                                ${cancion?.nombre_cancion || 'Sin nombre'}<br>
-                                ${cancion?.url_spotify ? `<a href="${cancion.url_spotify}" target="_blank" style="color: #1db954; font-size: 0.85rem;">🎵 Spotify</a>` : ''}
+                                ${nombreCancion}<br>
+                                ${urlCancion ? `<a href="${urlCancion}" target="_blank" style="color: #1db954; font-size: 0.85rem;">🎵 Spotify</a>` : ''}
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">
-                                ${envio.playlist?.nombre || 'N/A'}
+                                ${playlist.nombre || envio.playlist_nombre || 'N/A'}
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">
-                                ${envio.curador?.nombre || 'N/A'}<br>
-                                <small>${envio.curador?.email || ''}</small>
+                                ${curador.nombre || 'N/A'}<br>
+                                <small>${curador.email || ''}</small>
                             </td>
                             <td>
                                 <span class="badge ${estadoClass}">${estadoBadge}</span>
@@ -1503,7 +1565,7 @@
             } catch (err) {
                 console.error('❌ Error:', err);
                 document.getElementById('tablaEnvios').innerHTML = `
-                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar envíos</td></tr>
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar envíos: ${err.message}</td></tr>
                 `;
             }
         }
