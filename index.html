@@ -1166,32 +1166,28 @@
             // Abrir Spotify en nueva pestaña
             window.open(`https://open.spotify.com/playlist/${spotifyId}`, '_blank');
             
-            // Mostrar formulario para introducir datos manualmente
-            const followers = prompt('👥 ¿Cuántos seguidores tiene la playlist?\n(Mira en la pestaña de Spotify que se abrió)');
+            // Esperar un momento para que el admin vea la playlist
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            if (!followers || followers.trim() === '') {
-                alert('⚠️ Cancelado');
+            // Mostrar formulario para introducir datos manualmente
+            const followers = prompt('👥 ¿Cuántos SEGUIDORES tiene la playlist?\n\n(Mira en la pestaña de Spotify que se abrió)\n\nEjemplo: 1234');
+            
+            if (!followers || followers.trim() === '' || isNaN(followers)) {
+                alert('⚠️ Debes introducir un número válido de seguidores');
                 return;
             }
             
-            const name = prompt('🎵 ¿Cuál es el nombre exacto de la playlist?');
+            const name = prompt('🎵 ¿Cuál es el NOMBRE de la playlist?\n\n(Cópialo exactamente como aparece en Spotify)');
             
             if (!name || name.trim() === '') {
-                alert('⚠️ Cancelado');
-                return;
-            }
-            
-            const owner = prompt('👤 ¿Quién es el dueño de la playlist?');
-            
-            if (!owner || owner.trim() === '') {
-                alert('⚠️ Cancelado');
+                alert('⚠️ Debes introducir el nombre de la playlist');
                 return;
             }
             
             // Mostrar datos verificados
             document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
                 <div class="spotify-data">
-                    <h4>✅ Datos Verificados Manualmente</h4>
+                    <h4>✅ Datos Verificados</h4>
                     <div class="data-grid">
                         <div class="data-item">
                             <div class="data-label">Nombre:</div>
@@ -1201,10 +1197,9 @@
                             <div class="data-label">Seguidores:</div>
                             <div class="data-value">${parseInt(followers).toLocaleString()}</div>
                         </div>
-                        <div class="data-item">
-                            <div class="data-label">Dueño:</div>
-                            <div class="data-value">${owner}</div>
-                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                        💡 Verifica que el dueño de la playlist coincida con el email del curador antes de aprobar
                     </div>
                 </div>
             `;
