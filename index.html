@@ -748,6 +748,14 @@
             <!-- Tab: Envíos -->
             <div class="tab-content" id="tabEnvios">
                 <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📨 Gestión de Envíos</h2>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarEnviosPorEstado('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarEnviosPorEstado('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarEnviosPorEstado('aceptado')">✅ Aceptados</button>
+                    <button class="filter-btn" onclick="filtrarEnviosPorEstado('rechazado')">❌ Rechazados</button>
+                </div>
+
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -760,10 +768,10 @@
                                 <th>Fecha</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaEnvios">
                             <tr>
                                 <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
-                                    No hay envíos aún
+                                    Cargando envíos...
                                 </td>
                             </tr>
                         </tbody>
@@ -807,27 +815,35 @@
 
             <!-- Tab: Reportes -->
             <div class="tab-content" id="tabReportes">
-                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📊 Reportes y Estadísticas</h2>
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📊 Reportes de Usuarios</h2>
                 
-                <div class="stats-grid" style="margin-bottom: 2rem;">
-                    <div class="stat-card" style="border-color: #10b981;">
-                        <div class="stat-value" style="color: #10b981;">0€</div>
-                        <div class="stat-label">💸 Ingresos del Mes</div>
-                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
-                    </div>
-                    <div class="stat-card" style="border-color: #7c3aed;">
-                        <div class="stat-value" style="color: #7c3aed;">0</div>
-                        <div class="stat-label">🎵 Envíos del Mes</div>
-                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
-                    </div>
-                    <div class="stat-card" style="border-color: #ec4899;">
-                        <div class="stat-value" style="color: #ec4899;">0</div>
-                        <div class="stat-label">👥 Nuevos Usuarios</div>
-                        <div style="color: rgba(255,255,255,0.6); margin-top: 0.5rem;">📈 +0% vs mes anterior</div>
-                    </div>
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarReportesPorEstado('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarReportesPorEstado('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarReportesPorEstado('revisado')">✅ Revisados</button>
                 </div>
 
-                <button class="btn-save" onclick="exportarReporte()">📥 Exportar Reporte CSV</button>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaReportes">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    Cargando reportes...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Tab: Configuración -->
@@ -945,6 +961,8 @@
                 await cargarUsuariosReales();
                 await cargarPlaylistsPendientes();
                 await cargarTodasPlaylists();
+                await cargarTodosEnvios();
+                await cargarReportes();
                 
                 console.log('✅ Login de administrador exitoso');
             } else {
@@ -985,6 +1003,10 @@
                 cargarPlaylistsPendientes();
             } else if (tabName === 'playlists') {
                 cargarTodasPlaylists();
+            } else if (tabName === 'envios') {
+                cargarTodosEnvios();
+            } else if (tabName === 'reportes') {
+                cargarReportes();
             }
         }
 
@@ -1268,6 +1290,248 @@
             } catch (err) {
                 console.error('Error:', err);
                 alert('❌ Error al eliminar playlist');
+            }
+        }
+
+        // ========================================
+        // CARGAR TODOS LOS ENVÍOS
+        // ========================================
+        async function cargarTodosEnvios() {
+            try {
+                console.log('🔄 Cargando envíos...');
+                
+                const { data: envios, error } = await supabaseClient
+                    .from('envios')
+                    .select(`
+                        id,
+                        estado,
+                        created_at,
+                        artista:artista_id (nombre, email),
+                        playlist:playlist_id (nombre),
+                        curador:curador_id (nombre, email),
+                        envios_canciones (
+                            nombre_cancion,
+                            url_spotify
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    throw error;
+                }
+                
+                const tbody = document.getElementById('tablaEnvios');
+                
+                if (!envios || envios.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay envíos registrados</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                envios.forEach(envio => {
+                    let estadoBadge = '';
+                    let estadoClass = '';
+                    
+                    if (envio.estado === 'aceptado') {
+                        estadoBadge = '✅ Aceptado';
+                        estadoClass = 'badge-aprobada';
+                    } else if (envio.estado === 'pendiente') {
+                        estadoBadge = '⏳ Pendiente';
+                        estadoClass = 'badge-pendiente';
+                    } else if (envio.estado === 'rechazado') {
+                        estadoBadge = '❌ Rechazado';
+                        estadoClass = 'badge';
+                    }
+                    
+                    const fecha = new Date(envio.created_at).toLocaleDateString('es-ES');
+                    const cancion = envio.envios_canciones?.[0];
+                    
+                    tbody.innerHTML += `
+                        <tr data-estado="${envio.estado}">
+                            <td>
+                                <strong>${envio.artista?.nombre || 'Desconocido'}</strong><br>
+                                <small style="color: rgba(255,255,255,0.6);">${envio.artista?.email || 'N/A'}</small>
+                            </td>
+                            <td>
+                                ${cancion?.nombre_cancion || 'Sin nombre'}<br>
+                                ${cancion?.url_spotify ? `<a href="${cancion.url_spotify}" target="_blank" style="color: #1db954; font-size: 0.85rem;">🎵 Spotify</a>` : ''}
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">
+                                ${envio.playlist?.nombre || 'N/A'}
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">
+                                ${envio.curador?.nombre || 'N/A'}<br>
+                                <small>${envio.curador?.email || ''}</small>
+                            </td>
+                            <td>
+                                <span class="badge ${estadoClass}">${estadoBadge}</span>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
+                        </tr>
+                    `;
+                });
+                
+                console.log('✅ Envíos cargados:', envios.length);
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                document.getElementById('tablaEnvios').innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar envíos</td></tr>
+                `;
+            }
+        }
+
+        // ========================================
+        // FILTRAR ENVÍOS POR ESTADO
+        // ========================================
+        function filtrarEnviosPorEstado(estado) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#tablaEnvios tr[data-estado]');
+            
+            rows.forEach(row => {
+                if (estado === 'todos') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.estado === estado ? '' : 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // CARGAR REPORTES
+        // ========================================
+        async function cargarReportes() {
+            try {
+                console.log('🔄 Cargando reportes...');
+                
+                const { data: reportes, error } = await supabaseClient
+                    .from('reportes_playlist')
+                    .select(`
+                        id,
+                        tipo_reporte,
+                        descripcion,
+                        estado,
+                        created_at,
+                        usuario:usuario_id (nombre, email, tipo),
+                        playlist:playlist_id (nombre)
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    throw error;
+                }
+                
+                const tbody = document.getElementById('tablaReportes');
+                
+                if (!reportes || reportes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay reportes</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                reportes.forEach(reporte => {
+                    let estadoBadge = '';
+                    let estadoClass = '';
+                    
+                    if (reporte.estado === 'revisado') {
+                        estadoBadge = '✅ Revisado';
+                        estadoClass = 'badge-aprobada';
+                    } else {
+                        estadoBadge = '⏳ Pendiente';
+                        estadoClass = 'badge-pendiente';
+                    }
+                    
+                    const fecha = new Date(reporte.created_at).toLocaleString('es-ES');
+                    
+                    tbody.innerHTML += `
+                        <tr data-estado="${reporte.estado || 'pendiente'}">
+                            <td>
+                                <strong>${reporte.usuario?.nombre || 'Desconocido'}</strong><br>
+                                <small style="color: rgba(255,255,255,0.6);">${reporte.usuario?.email || 'N/A'}</small><br>
+                                <span class="badge ${reporte.usuario?.tipo === 'artista' ? 'badge-artista' : 'badge-curador'}" style="margin-top: 0.25rem;">
+                                    ${reporte.usuario?.tipo === 'artista' ? '🎵 Artista' : '🎧 Curador'}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>${reporte.tipo_reporte || 'General'}</strong>
+                            </td>
+                            <td style="max-width: 300px;">
+                                ${reporte.descripcion || 'Sin descripción'}<br>
+                                ${reporte.playlist?.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${reporte.playlist.nombre}</small>` : ''}
+                            </td>
+                            <td>
+                                <span class="badge ${estadoClass}">${estadoBadge}</span>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">${fecha}</td>
+                            <td>
+                                ${reporte.estado !== 'revisado' ? `
+                                    <button class="btn-action btn-approve" onclick="marcarReporteRevisado('${reporte.id}')">✅ Revisar</button>
+                                ` : '<span style="color: rgba(255,255,255,0.5);">Completado</span>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                console.log('✅ Reportes cargados:', reportes.length);
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                document.getElementById('tablaReportes').innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar reportes</td></tr>
+                `;
+            }
+        }
+
+        // ========================================
+        // FILTRAR REPORTES POR ESTADO
+        // ========================================
+        function filtrarReportesPorEstado(estado) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#tablaReportes tr[data-estado]');
+            
+            rows.forEach(row => {
+                if (estado === 'todos') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.estado === estado ? '' : 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // MARCAR REPORTE COMO REVISADO
+        // ========================================
+        async function marcarReporteRevisado(reporteId) {
+            if (!confirm('¿Marcar este reporte como revisado?')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('reportes_playlist')
+                    .update({ estado: 'revisado' })
+                    .eq('id', reporteId);
+                
+                if (error) throw error;
+                
+                alert('✅ Reporte marcado como revisado');
+                await cargarReportes();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error al actualizar reporte');
             }
         }
 
@@ -1562,6 +1826,8 @@
                 cargarUsuariosReales();
                 cargarPlaylistsPendientes();
                 cargarTodasPlaylists();
+                cargarTodosEnvios();
+                cargarReportes();
             }
         });
     </script>
