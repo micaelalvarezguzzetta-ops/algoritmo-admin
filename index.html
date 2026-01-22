@@ -1642,10 +1642,14 @@
                 
                 document.getElementById('totalTransacciones').textContent = todasTrans?.length || 0;
                 
-                // Cargar reportes de usuarios (usando artista_id, no usuario_id)
+                // =====================================================
+                // CARGAR REPORTES REALES DESDE envios_canciones
+                // (donde mensaje_artista contiene [REPORTE])
+                // =====================================================
                 const { data: reportes, error } = await supabaseClient
-                    .from('reportes_playlist')
+                    .from('envios_canciones')
                     .select('*')
+                    .like('mensaje_artista', '%[REPORTE]%')
                     .order('created_at', { ascending: false })
                     .limit(20);
                 
@@ -1653,24 +1657,26 @@
                     console.error('❌ Error cargando reportes:', error);
                 }
 
-                console.log('📊 Reportes obtenidos:', reportes);
+                console.log('📊 Reportes obtenidos desde envios_canciones:', reportes);
                 
-                // Obtener datos de artistas y playlists
-                let artistasMap = {};
+                // Obtener datos de artistas, curadores y playlists
+                let usuariosMap = {};
                 let playlistsMap = {};
                 
                 if (reportes && reportes.length > 0) {
                     const artistaIds = [...new Set(reportes.map(r => r.artista_id).filter(Boolean))];
+                    const curadorIds = [...new Set(reportes.map(r => r.curador_id).filter(Boolean))];
                     const playlistIds = [...new Set(reportes.map(r => r.playlist_id).filter(Boolean))];
+                    const allUserIds = [...new Set([...artistaIds, ...curadorIds])];
                     
-                    if (artistaIds.length > 0) {
-                        const { data: artistas } = await supabaseClient
+                    if (allUserIds.length > 0) {
+                        const { data: usuarios } = await supabaseClient
                             .from('usuarios')
                             .select('id, nombre, email')
-                            .in('id', artistaIds);
+                            .in('id', allUserIds);
                         
-                        if (artistas) {
-                            artistas.forEach(a => artistasMap[a.id] = a);
+                        if (usuarios) {
+                            usuarios.forEach(u => usuariosMap[u.id] = u);
                         }
                     }
                     
@@ -1694,42 +1700,36 @@
                     tbody.innerHTML = '';
                     
                     reportes.forEach(reporte => {
-                        let estadoBadge = '';
-                        let estadoClass = '';
-                        
-                        if (reporte.estado === 'revisado') {
-                            estadoBadge = '✅ Revisado';
-                            estadoClass = 'badge-aprobada';
-                        } else {
-                            estadoBadge = '⏳ Pendiente';
-                            estadoClass = 'badge-pendiente';
-                        }
+                        // Extraer el mensaje del reporte (quitar el prefijo [REPORTE])
+                        const mensajeReporte = reporte.mensaje_artista.replace('[REPORTE]', '').trim();
                         
                         const fecha = new Date(reporte.created_at).toLocaleString('es-ES');
-                        const artista = artistasMap[reporte.artista_id] || {};
+                        const artista = usuariosMap[reporte.artista_id] || {};
+                        const curador = usuariosMap[reporte.curador_id] || {};
                         const playlist = playlistsMap[reporte.playlist_id] || {};
                         
                         tbody.innerHTML += `
-                            <tr data-estado="${reporte.estado || 'pendiente'}">
+                            <tr>
                                 <td>
-                                    <strong>${artista.nombre || 'Desconocido'}</strong><br>
+                                    <strong>${reporte.artista_nombre || artista.nombre || 'Desconocido'}</strong><br>
                                     <small style="color: rgba(255,255,255,0.6);">${artista.email || 'N/A'}</small>
                                 </td>
                                 <td>
-                                    <strong>${reporte.tipo_reporte || reporte.motivo || 'General'}</strong>
+                                    <strong>🎵 ${reporte.cancion_nombre}</strong><br>
+                                    <a href="${reporte.cancion_url}" target="_blank" style="color: #1db954; font-size: 0.85rem;">Ver en Spotify</a>
                                 </td>
                                 <td style="max-width: 300px;">
-                                    ${reporte.descripcion || reporte.motivo || 'Sin descripción'}<br>
-                                    ${playlist.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${playlist.nombre}</small>` : ''}
+                                    <strong style="color: #ef4444;">⚠️ ${mensajeReporte}</strong><br>
+                                    <small style="color: rgba(255,255,255,0.5);">Playlist: ${playlist.nombre || 'N/A'}</small><br>
+                                    <small style="color: rgba(255,255,255,0.5);">Curador: ${curador.nombre || 'N/A'}</small>
                                 </td>
                                 <td>
-                                    <span class="badge ${estadoClass}">${estadoBadge}</span>
+                                    <span class="badge badge-pendiente">⏳ Pendiente</span>
                                 </td>
                                 <td style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">${fecha}</td>
                                 <td>
-                                    ${reporte.estado !== 'revisado' ? `
-                                        <button class="btn-action btn-approve" onclick="marcarReporteRevisado('${reporte.id}')">✅ Marcar</button>
-                                    ` : '<span style="color: rgba(255,255,255,0.5);">Revisado</span>'}
+                                    <button class="btn-action btn-view" onclick="verDetalleReporte(${reporte.id})">👁️ Ver</button>
+                                    <button class="btn-action btn-approve" onclick="marcarReporteRevisado(${reporte.id})">✅ Revisar</button>
                                 </td>
                             </tr>
                         `;
@@ -1741,6 +1741,13 @@
             } catch (err) {
                 console.error('❌ Error:', err);
             }
+        }
+
+        // ========================================
+        // VER DETALLE DE REPORTE
+        // ========================================
+        function verDetalleReporte(envioId) {
+            alert(`Ver detalle del envío reportado #${envioId}\n\nEsta función mostrará todos los detalles del envío y permitirá tomar acciones.`);
         }
 
         // ========================================
@@ -1766,16 +1773,28 @@
         // ========================================
         // MARCAR REPORTE COMO REVISADO
         // ========================================
-        async function marcarReporteRevisado(reporteId) {
-            if (!confirm('¿Marcar este reporte como revisado?')) {
+        async function marcarReporteRevisado(envioId) {
+            if (!confirm('¿Marcar este reporte como revisado?\n\nEsto añadirá [REVISADO] al mensaje.')) {
                 return;
             }
             
             try {
+                // Obtener el mensaje actual
+                const { data: envio, error: fetchError } = await supabaseClient
+                    .from('envios_canciones')
+                    .select('mensaje_artista')
+                    .eq('id', envioId)
+                    .single();
+                
+                if (fetchError) throw fetchError;
+                
+                // Actualizar el mensaje añadiendo [REVISADO]
+                const nuevoMensaje = envio.mensaje_artista.replace('[REPORTE]', '[REPORTE][REVISADO]');
+                
                 const { error } = await supabaseClient
-                    .from('reportes_playlist')
-                    .update({ estado: 'revisado' })
-                    .eq('id', reporteId);
+                    .from('envios_canciones')
+                    .update({ mensaje_artista: nuevoMensaje })
+                    .eq('id', envioId);
                 
                 if (error) throw error;
                 
