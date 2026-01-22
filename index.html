@@ -687,9 +687,35 @@
 
             <!-- Tab: Playlists -->
             <div class="tab-content" id="tabPlaylists">
-                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🎵 Playlists Registradas</h2>
-                <div style="padding: 3rem; text-align: center; color: rgba(255,255,255,0.5);">
-                    No hay playlists registradas
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🎵 Todas las Playlists</h2>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarPlaylistsPorEstado('todas')">📊 Todas</button>
+                    <button class="filter-btn" onclick="filtrarPlaylistsPorEstado('aprobada')">✅ Aprobadas</button>
+                    <button class="filter-btn" onclick="filtrarPlaylistsPorEstado('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarPlaylistsPorEstado('rechazada')">❌ Rechazadas</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Curador</th>
+                                <th>Seguidores</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTodasPlaylists">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    Cargando playlists...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -801,6 +827,7 @@
                 // Cargar datos REALES de Supabase
                 await cargarUsuariosReales();
                 await cargarPlaylistsPendientes();
+                await cargarTodasPlaylists();
                 
                 console.log('✅ Login de administrador exitoso');
             } else {
@@ -836,9 +863,11 @@
             document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
             event.target.classList.add('active');
 
-            // Si es la tab de aprobar playlists, recargar
+            // Cargar datos según la tab
             if (tabName === 'aprobarPlaylists') {
                 cargarPlaylistsPendientes();
+            } else if (tabName === 'playlists') {
+                cargarTodasPlaylists();
             }
         }
 
@@ -986,6 +1015,142 @@
                         <p>${err.message}</p>
                     </div>
                 `;
+            }
+        }
+
+        // ========================================
+        // CARGAR TODAS LAS PLAYLISTS
+        // ========================================
+        async function cargarTodasPlaylists() {
+            try {
+                console.log('🔄 Cargando todas las playlists...');
+                
+                const { data: playlists, error } = await supabaseClient
+                    .from('playlists')
+                    .select(`
+                        id,
+                        nombre,
+                        followers,
+                        estado,
+                        url_spotify,
+                        created_at,
+                        motivo_rechazo,
+                        usuarios!playlists_curador_id_fkey (
+                            nombre,
+                            email
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    throw error;
+                }
+                
+                const tbody = document.getElementById('tablaTodasPlaylists');
+                
+                if (!playlists || playlists.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay playlists registradas</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                playlists.forEach(playlist => {
+                    let estadoBadge = '';
+                    let estadoClass = '';
+                    
+                    if (playlist.estado === 'aprobada') {
+                        estadoBadge = '✅ Aprobada';
+                        estadoClass = 'badge-aprobada';
+                    } else if (playlist.estado === 'pendiente') {
+                        estadoBadge = '⏳ Pendiente';
+                        estadoClass = 'badge-pendiente';
+                    } else if (playlist.estado === 'rechazada') {
+                        estadoBadge = '❌ Rechazada';
+                        estadoClass = 'badge';
+                    }
+                    
+                    const fecha = new Date(playlist.created_at).toLocaleDateString('es-ES');
+                    
+                    tbody.innerHTML += `
+                        <tr data-estado="${playlist.estado}">
+                            <td>
+                                <strong>${playlist.nombre || 'Sin nombre'}</strong>
+                                ${playlist.motivo_rechazo ? `<br><small style="color: #ef4444;">Motivo: ${playlist.motivo_rechazo}</small>` : ''}
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">
+                                ${playlist.usuarios?.nombre || 'Desconocido'}<br>
+                                <small>${playlist.usuarios?.email || 'N/A'}</small>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">
+                                👥 ${(playlist.followers || 0).toLocaleString()}
+                            </td>
+                            <td>
+                                <span class="badge ${estadoClass}">${estadoBadge}</span>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
+                            <td>
+                                ${playlist.url_spotify ? `<a href="${playlist.url_spotify}" target="_blank" class="btn-action btn-view">🎵 Ver</a>` : ''}
+                                <button class="btn-action btn-delete" onclick="eliminarPlaylistAdmin('${playlist.id}', '${playlist.nombre}')">🗑️ Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                console.log('✅ Playlists cargadas:', playlists.length);
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                document.getElementById('tablaTodasPlaylists').innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar playlists</td></tr>
+                `;
+            }
+        }
+
+        // ========================================
+        // FILTRAR PLAYLISTS POR ESTADO
+        // ========================================
+        function filtrarPlaylistsPorEstado(estado) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#tablaTodasPlaylists tr[data-estado]');
+            
+            rows.forEach(row => {
+                if (estado === 'todas') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.estado === estado ? '' : 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // ELIMINAR PLAYLIST (ADMIN)
+        // ========================================
+        async function eliminarPlaylistAdmin(playlistId, nombre) {
+            if (!confirm(`¿Eliminar playlist "${nombre}"?\n\n⚠️ Esta acción no se puede deshacer.`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('playlists')
+                    .delete()
+                    .eq('id', playlistId);
+                
+                if (error) throw error;
+                
+                alert('✅ Playlist eliminada correctamente');
+                await cargarTodasPlaylists();
+                await cargarPlaylistsPendientes(); // Actualizar contador
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error al eliminar playlist');
             }
         }
 
@@ -1252,6 +1417,7 @@
                 document.getElementById('adminPanel').style.display = 'block';
                 cargarUsuariosReales();
                 cargarPlaylistsPendientes();
+                cargarTodasPlaylists();
             }
         });
     </script>
