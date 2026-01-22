@@ -286,6 +286,16 @@
             background: rgba(236, 72, 153, 0.2);
             color: #ec4899;
         }
+
+        .badge-pendiente {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
+        .badge-aprobada {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
         
         .btn-action {
             padding: 0.5rem 1rem;
@@ -300,6 +310,12 @@
         .btn-action:hover {
             transform: scale(1.05);
         }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
         
         .btn-view {
             background: rgba(59, 130, 246, 0.2);
@@ -307,6 +323,21 @@
         }
         
         .btn-delete {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .btn-verify {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .btn-approve {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .btn-reject {
             background: rgba(239, 68, 68, 0.2);
             color: #ef4444;
         }
@@ -410,6 +441,67 @@
             cursor: pointer;
             margin-right: 1rem;
         }
+
+        .playlist-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .playlist-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .playlist-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .playlist-info {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .spotify-data {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .spotify-data h4 {
+            color: #10b981;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .data-item {
+            font-size: 0.9rem;
+        }
+
+        .data-label {
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 0.25rem;
+        }
+
+        .data-value {
+            color: white;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -471,14 +563,15 @@
                     <div class="stat-label">Curadores</div>
                 </div>
                 <div class="stat-card" style="border-color: #fbbf24;">
-                    <div class="stat-value" style="color: #fbbf24;" id="totalIngresos">0€</div>
-                    <div class="stat-label">Ingresos Totales</div>
+                    <div class="stat-value" style="color: #fbbf24;" id="playlistsPendientes">0</div>
+                    <div class="stat-label">Playlists Pendientes</div>
                 </div>
             </div>
 
             <!-- Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="changeTab('usuarios')">👥 Usuarios</button>
+                <button class="tab-btn" onclick="changeTab('aprobarPlaylists')">📋 Aprobar Playlists</button>
                 <button class="tab-btn" onclick="changeTab('transacciones')">💰 Transacciones</button>
                 <button class="tab-btn" onclick="changeTab('envios')">📨 Envíos</button>
                 <button class="tab-btn" onclick="changeTab('playlists')">🎵 Playlists</button>
@@ -517,6 +610,17 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Tab: APROBAR PLAYLISTS (NUEVO) -->
+            <div class="tab-content" id="tabAprobarPlaylists">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📋 Aprobar Playlists Pendientes</h2>
+                
+                <div id="playlistsPendientesContainer">
+                    <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                        ⏳ Cargando playlists pendientes...
+                    </div>
                 </div>
             </div>
 
@@ -650,10 +754,11 @@
         // ========================================
         const SUPABASE_URL = 'https://wesmqqaijlmqhctrtaje.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_LgSAsCVW7tlDfDvkD8enyA_pQp42IZF';
+        const SUPABASE_SECRET_KEY = 'sb_secret_DPz_1zmdkqaYwRpdxM6bqg_weL'; 
         
         let supabaseClient;
         if (typeof supabase !== 'undefined') {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
             console.log('✅ Supabase inicializado en Admin Panel');
         } else {
             console.error('❌ Supabase no está disponible');
@@ -687,6 +792,7 @@
                 
                 // Cargar datos REALES de Supabase
                 await cargarUsuariosReales();
+                await cargarPlaylistsPendientes();
                 
                 console.log('✅ Login de administrador exitoso');
             } else {
@@ -721,9 +827,13 @@
             // Mostrar tab seleccionado
             document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
             event.target.classList.add('active');
+
+            // Si es la tab de aprobar playlists, recargar
+            if (tabName === 'aprobarPlaylists') {
+                cargarPlaylistsPendientes();
+            }
         }
 
-        // Cargar usuarios demo
         // ========================================
         // CARGAR USUARIOS REALES DE SUPABASE
         // ========================================
@@ -784,42 +894,232 @@
                 alert('Error al cargar datos');
             }
         }
-        
-        // Mantener función demo como respaldo (por si acaso)
-        function cargarUsuariosDemo() {
-            const usuarios = [
-                {nombre: 'Juan Pérez', email: 'juan@example.com', tipo: 'artista', fecha: '2026-01-05'},
-                {nombre: 'María García', email: 'maria@example.com', tipo: 'curador', fecha: '2026-01-06'},
-                {nombre: 'Carlos Ruiz', email: 'carlos@example.com', tipo: 'artista', fecha: '2026-01-07'},
-                {nombre: 'Ana López', email: 'ana@example.com', tipo: 'curador', fecha: '2026-01-07'},
-                {nombre: 'Pedro Sánchez', email: 'pedro@example.com', tipo: 'artista', fecha: '2026-01-08'}
-            ];
-            
-            const tbody = document.getElementById('tablaUsuarios');
-            tbody.innerHTML = '';
-            
-            usuarios.forEach(user => {
-                const badgeClass = user.tipo === 'artista' ? 'badge-artista' : 'badge-curador';
-                const icon = user.tipo === 'artista' ? '🎵' : '🎧';
+
+        // ========================================
+        // CARGAR PLAYLISTS PENDIENTES
+        // ========================================
+        async function cargarPlaylistsPendientes() {
+            try {
+                console.log('🔄 Cargando playlists pendientes...');
                 
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${user.nombre}</td>
-                        <td style="color: rgba(255,255,255,0.7);">${user.email}</td>
-                        <td><span class="badge ${badgeClass}">${icon} ${user.tipo.charAt(0).toUpperCase() + user.tipo.slice(1)}</span></td>
-                        <td style="color: rgba(255,255,255,0.7);">${user.fecha}</td>
-                        <td>
-                            <button class="btn-action btn-view" onclick="verUsuario('${user.email}')">👁️ Ver</button>
-                            <button class="btn-action btn-delete" onclick="eliminarUsuario('${user.email}')">🗑️ Eliminar</button>
-                        </td>
-                    </tr>
+                const { data: playlists, error } = await supabaseClient
+                    .from('playlists')
+                    .select(`
+                        id,
+                        nombre,
+                        url_spotify,
+                        spotify_playlist_id,
+                        followers,
+                        created_at,
+                        usuarios!playlists_curador_id_fkey (
+                            nombre,
+                            email
+                        )
+                    `)
+                    .eq('estado', 'pendiente')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    throw error;
+                }
+                
+                const container = document.getElementById('playlistsPendientesContainer');
+                
+                if (!playlists || playlists.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                            <h3 style="font-size: 2rem; margin-bottom: 1rem;">✅ ¡Todo revisado!</h3>
+                            <p>No hay playlists pendientes de aprobación</p>
+                        </div>
+                    `;
+                    document.getElementById('playlistsPendientes').textContent = '0';
+                    return;
+                }
+                
+                document.getElementById('playlistsPendientes').textContent = playlists.length;
+                
+                container.innerHTML = playlists.map(playlist => `
+                    <div class="playlist-card" id="playlist-${playlist.id}">
+                        <div class="playlist-header">
+                            <div>
+                                <div class="playlist-title">${playlist.nombre || 'Sin nombre'}</div>
+                                <div class="playlist-info">
+                                    👤 Curador: <strong>${playlist.usuarios?.nombre || 'Desconocido'}</strong><br>
+                                    📧 Email: ${playlist.usuarios?.email || 'N/A'}<br>
+                                    📅 Enviado: ${new Date(playlist.created_at).toLocaleString('es-ES')}<br>
+                                    🔗 <a href="${playlist.url_spotify || '#'}" target="_blank" style="color: #1db954;">Ver en Spotify</a>
+                                </div>
+                            </div>
+                            <span class="badge badge-pendiente">⏳ PENDIENTE</span>
+                        </div>
+                        
+                        <div id="spotifyData-${playlist.id}"></div>
+                        
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                            <button class="btn-action btn-verify" onclick="verificarPlaylist('${playlist.id}', '${playlist.spotify_playlist_id || ''}')">
+                                🔍 Verificar Datos
+                            </button>
+                            <button class="btn-action btn-approve" onclick="aprobarPlaylist('${playlist.id}')" id="btnAprobar-${playlist.id}" disabled>
+                                ✅ Aprobar
+                            </button>
+                            <button class="btn-action btn-reject" onclick="rechazarPlaylist('${playlist.id}')">
+                                ❌ Rechazar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                document.getElementById('playlistsPendientesContainer').innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                        <h3 style="color: #ef4444; margin-bottom: 1rem;">⚠️ Error</h3>
+                        <p>${err.message}</p>
+                    </div>
                 `;
-            });
+            }
+        }
+
+        // ========================================
+        // VERIFICAR PLAYLIST EN SPOTIFY
+        // ========================================
+        async function verificarPlaylist(playlistId, spotifyId) {
+            if (!spotifyId) {
+                alert('⚠️ Esta playlist no tiene ID de Spotify');
+                return;
+            }
             
-            // Actualizar estadísticas
-            document.getElementById('totalUsuarios').textContent = usuarios.length;
-            document.getElementById('totalArtistas').textContent = usuarios.filter(u => u.tipo === 'artista').length;
-            document.getElementById('totalCuradores').textContent = usuarios.filter(u => u.tipo === 'curador').length;
+            try {
+                const response = await fetch('https://wesmqqaijlmqhctrtaje.supabase.co/functions/v1/verificar-playlist-admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_SECRET_KEY}`
+                    },
+                    body: JSON.stringify({ playlistId: spotifyId })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error verificando');
+                }
+                
+                const playlist = result.playlist;
+                
+                // Mostrar datos verificados
+                document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
+                    <div class="spotify-data">
+                        <h4>✅ Datos Verificados de Spotify</h4>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-label">Nombre:</div>
+                                <div class="data-value">${playlist.name}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Seguidores:</div>
+                                <div class="data-value">${playlist.followers.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Dueño:</div>
+                                <div class="data-value">${playlist.owner}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">Canciones:</div>
+                                <div class="data-value">${playlist.tracks}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Habilitar botón aprobar
+                const btn = document.getElementById(`btnAprobar-${playlistId}`);
+                btn.disabled = false;
+                btn.dataset.followers = playlist.followers;
+                btn.dataset.name = playlist.name;
+                btn.dataset.image = playlist.image || '';
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                alert('❌ Error verificando: ' + err.message);
+            }
+        }
+
+        // ========================================
+        // APROBAR PLAYLIST
+        // ========================================
+        async function aprobarPlaylist(playlistId) {
+            const btn = document.getElementById(`btnAprobar-${playlistId}`);
+            const followers = btn.dataset.followers;
+            const name = btn.dataset.name;
+            const image = btn.dataset.image;
+            
+            if (!followers || !name) {
+                alert('⚠️ Primero verifica la playlist');
+                return;
+            }
+            
+            if (!confirm(`¿Aprobar esta playlist?\n\nNombre: ${name}\nSeguidores: ${followers}`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('playlists')
+                    .update({
+                        estado: 'aprobada',
+                        followers: parseInt(followers),
+                        nombre: name,
+                        imagen_url: image,
+                        ultima_actualizacion: new Date().toISOString()
+                    })
+                    .eq('id', playlistId);
+                
+                if (error) throw error;
+                
+                alert('✅ Playlist aprobada correctamente');
+                cargarPlaylistsPendientes();
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ========================================
+        // RECHAZAR PLAYLIST
+        // ========================================
+        async function rechazarPlaylist(playlistId) {
+            const motivo = prompt('Motivo del rechazo:\n\nEjemplos:\n- La playlist no te pertenece\n- Datos incorrectos\n- Contenido inapropiado');
+            
+            if (!motivo || motivo.trim() === '') {
+                alert('⚠️ Debes proporcionar un motivo');
+                return;
+            }
+            
+            if (!confirm(`¿Rechazar esta playlist?\n\nMotivo: ${motivo}`)) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('playlists')
+                    .update({
+                        estado: 'rechazada',
+                        motivo_rechazo: motivo.trim()
+                    })
+                    .eq('id', playlistId);
+                
+                if (error) throw error;
+                
+                alert('❌ Playlist rechazada');
+                cargarPlaylistsPendientes();
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
         }
 
         // Filtrar usuarios
@@ -929,7 +1229,6 @@
         function resetearDatos() {
             if (confirm('⚠️ ¿Resetear todos los datos demo?')) {
                 alert('✅ Datos reseteados');
-                cargarUsuariosDemo();
             }
         }
 
@@ -943,7 +1242,8 @@
             if (sessionStorage.getItem('adminLoggedIn') === 'true') {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('adminPanel').style.display = 'block';
-                cargarUsuariosDemo();
+                cargarUsuariosReales();
+                cargarPlaylistsPendientes();
             }
         });
     </script>
