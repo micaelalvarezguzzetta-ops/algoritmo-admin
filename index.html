@@ -722,11 +722,18 @@
             <!-- Tab: Transacciones -->
             <div class="tab-content" id="tabTransacciones">
                 <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">💰 Historial de Transacciones</h2>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarTransaccionesPorEstado('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarTransaccionesPorEstado('completado')">✅ Completados</button>
+                    <button class="filter-btn" onclick="filtrarTransaccionesPorEstado('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarTransaccionesPorEstado('cancelado')">❌ Cancelados</button>
+                </div>
+
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Usuario</th>
                                 <th>Tipo</th>
                                 <th>Monto</th>
@@ -734,10 +741,10 @@
                                 <th>Fecha</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaTransacciones">
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
-                                    No hay transacciones aún
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
+                                    Cargando transacciones...
                                 </td>
                             </tr>
                         </tbody>
@@ -815,14 +822,29 @@
 
             <!-- Tab: Reportes -->
             <div class="tab-content" id="tabReportes">
-                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📊 Reportes de Usuarios</h2>
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📊 Reportes y Estadísticas</h2>
                 
-                <div class="filters">
-                    <button class="filter-btn active" onclick="filtrarReportesPorEstado('todos')">📊 Todos</button>
-                    <button class="filter-btn" onclick="filtrarReportesPorEstado('pendiente')">⏳ Pendientes</button>
-                    <button class="filter-btn" onclick="filtrarReportesPorEstado('revisado')">✅ Revisados</button>
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card" style="border-color: #10b981;">
+                        <div class="stat-value" style="color: #10b981;" id="ingresosDelMes">0€</div>
+                        <div class="stat-label">💸 Ingresos del Mes</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #7c3aed;">
+                        <div class="stat-value" style="color: #7c3aed;" id="enviosDelMes">0</div>
+                        <div class="stat-label">🎵 Envíos del Mes</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #ec4899;">
+                        <div class="stat-value" style="color: #ec4899;" id="nuevosUsuarios">0</div>
+                        <div class="stat-label">👥 Nuevos Usuarios</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #fbbf24;">
+                        <div class="stat-value" style="color: #fbbf24;" id="totalTransacciones">0</div>
+                        <div class="stat-label">💰 Total Transacciones</div>
+                    </div>
                 </div>
 
+                <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem;">⚠️ Reportes de Usuarios</h3>
+                
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -835,10 +857,10 @@
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tablaReportes">
+                        <tbody id="tablaReportesUsuarios">
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
-                                    Cargando reportes...
+                                <td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                                    Cargando reportes de usuarios...
                                 </td>
                             </tr>
                         </tbody>
@@ -961,6 +983,7 @@
                 await cargarUsuariosReales();
                 await cargarPlaylistsPendientes();
                 await cargarTodasPlaylists();
+                await cargarTransacciones();
                 await cargarTodosEnvios();
                 await cargarReportes();
                 
@@ -1001,6 +1024,8 @@
             // Cargar datos según la tab
             if (tabName === 'aprobarPlaylists') {
                 cargarPlaylistsPendientes();
+            } else if (tabName === 'transacciones') {
+                cargarTransacciones();
             } else if (tabName === 'playlists') {
                 cargarTodasPlaylists();
             } else if (tabName === 'envios') {
@@ -1294,6 +1319,106 @@
         }
 
         // ========================================
+        // CARGAR TRANSACCIONES
+        // ========================================
+        async function cargarTransacciones() {
+            try {
+                console.log('🔄 Cargando transacciones...');
+                
+                const { data: transacciones, error } = await supabaseClient
+                    .from('transacciones')
+                    .select(`
+                        id,
+                        tipo,
+                        monto,
+                        estado,
+                        created_at,
+                        usuario:usuario_id (nombre, email, tipo)
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    throw error;
+                }
+                
+                const tbody = document.getElementById('tablaTransacciones');
+                
+                if (!transacciones || transacciones.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay transacciones registradas</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                transacciones.forEach(trans => {
+                    let estadoBadge = '';
+                    let estadoClass = '';
+                    
+                    if (trans.estado === 'completado') {
+                        estadoBadge = '✅ Completado';
+                        estadoClass = 'badge-aprobada';
+                    } else if (trans.estado === 'pendiente') {
+                        estadoBadge = '⏳ Pendiente';
+                        estadoClass = 'badge-pendiente';
+                    } else if (trans.estado === 'cancelado') {
+                        estadoBadge = '❌ Cancelado';
+                        estadoClass = 'badge';
+                    }
+                    
+                    const fecha = new Date(trans.created_at).toLocaleDateString('es-ES');
+                    
+                    tbody.innerHTML += `
+                        <tr data-estado="${trans.estado}">
+                            <td>
+                                <strong>${trans.usuario?.nombre || 'Desconocido'}</strong><br>
+                                <small style="color: rgba(255,255,255,0.6);">${trans.usuario?.email || 'N/A'}</small>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">
+                                ${trans.tipo || 'N/A'}
+                            </td>
+                            <td>
+                                <strong style="color: #10b981;">${trans.monto}€</strong>
+                            </td>
+                            <td>
+                                <span class="badge ${estadoClass}">${estadoBadge}</span>
+                            </td>
+                            <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
+                        </tr>
+                    `;
+                });
+                
+                console.log('✅ Transacciones cargadas:', transacciones.length);
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                document.getElementById('tablaTransacciones').innerHTML = `
+                    <tr><td colspan="5" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar transacciones</td></tr>
+                `;
+            }
+        }
+
+        // ========================================
+        // FILTRAR TRANSACCIONES POR ESTADO
+        // ========================================
+        function filtrarTransaccionesPorEstado(estado) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#tablaTransacciones tr[data-estado]');
+            
+            rows.forEach(row => {
+                if (estado === 'todos') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.estado === estado ? '' : 'none';
+                }
+            });
+        }
+
+        // ========================================
         // CARGAR TODOS LOS ENVÍOS
         // ========================================
         async function cargarTodosEnvios() {
@@ -1404,12 +1529,50 @@
         }
 
         // ========================================
-        // CARGAR REPORTES
+        // CARGAR REPORTES (ESTADÍSTICAS + REPORTES DE USUARIOS)
         // ========================================
         async function cargarReportes() {
             try {
-                console.log('🔄 Cargando reportes...');
+                console.log('🔄 Cargando reportes y estadísticas...');
                 
+                // Calcular estadísticas del mes actual
+                const hoy = new Date();
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                
+                // Ingresos del mes
+                const { data: transacciones } = await supabaseClient
+                    .from('transacciones')
+                    .select('monto')
+                    .eq('estado', 'completado')
+                    .gte('created_at', inicioMes.toISOString());
+                
+                const ingresosMes = transacciones?.reduce((sum, t) => sum + (t.monto || 0), 0) || 0;
+                document.getElementById('ingresosDelMes').textContent = `${ingresosMes.toFixed(2)}€`;
+                
+                // Envíos del mes
+                const { data: envios } = await supabaseClient
+                    .from('envios')
+                    .select('id')
+                    .gte('created_at', inicioMes.toISOString());
+                
+                document.getElementById('enviosDelMes').textContent = envios?.length || 0;
+                
+                // Nuevos usuarios del mes
+                const { data: usuarios } = await supabaseClient
+                    .from('usuarios')
+                    .select('id')
+                    .gte('created_at', inicioMes.toISOString());
+                
+                document.getElementById('nuevosUsuarios').textContent = usuarios?.length || 0;
+                
+                // Total transacciones
+                const { data: todasTrans } = await supabaseClient
+                    .from('transacciones')
+                    .select('id');
+                
+                document.getElementById('totalTransacciones').textContent = todasTrans?.length || 0;
+                
+                // Cargar reportes de usuarios
                 const { data: reportes, error } = await supabaseClient
                     .from('reportes_playlist')
                     .select(`
@@ -1421,72 +1584,65 @@
                         usuario:usuario_id (nombre, email, tipo),
                         playlist:playlist_id (nombre)
                     `)
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: false })
+                    .limit(10);
                 
                 if (error) {
-                    console.error('❌ Error:', error);
-                    throw error;
+                    console.error('❌ Error cargando reportes:', error);
                 }
                 
-                const tbody = document.getElementById('tablaReportes');
+                const tbody = document.getElementById('tablaReportesUsuarios');
                 
                 if (!reportes || reportes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay reportes</td></tr>';
-                    return;
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay reportes de usuarios</td></tr>';
+                } else {
+                    tbody.innerHTML = '';
+                    
+                    reportes.forEach(reporte => {
+                        let estadoBadge = '';
+                        let estadoClass = '';
+                        
+                        if (reporte.estado === 'revisado') {
+                            estadoBadge = '✅ Revisado';
+                            estadoClass = 'badge-aprobada';
+                        } else {
+                            estadoBadge = '⏳ Pendiente';
+                            estadoClass = 'badge-pendiente';
+                        }
+                        
+                        const fecha = new Date(reporte.created_at).toLocaleString('es-ES');
+                        
+                        tbody.innerHTML += `
+                            <tr data-estado="${reporte.estado || 'pendiente'}">
+                                <td>
+                                    <strong>${reporte.usuario?.nombre || 'Desconocido'}</strong><br>
+                                    <small style="color: rgba(255,255,255,0.6);">${reporte.usuario?.email || 'N/A'}</small>
+                                </td>
+                                <td>
+                                    <strong>${reporte.tipo_reporte || 'General'}</strong>
+                                </td>
+                                <td style="max-width: 300px;">
+                                    ${reporte.descripcion || 'Sin descripción'}<br>
+                                    ${reporte.playlist?.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${reporte.playlist.nombre}</small>` : ''}
+                                </td>
+                                <td>
+                                    <span class="badge ${estadoClass}">${estadoBadge}</span>
+                                </td>
+                                <td style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">${fecha}</td>
+                                <td>
+                                    ${reporte.estado !== 'revisado' ? `
+                                        <button class="btn-action btn-approve" onclick="marcarReporteRevisado('${reporte.id}')">✅ Marcar</button>
+                                    ` : '<span style="color: rgba(255,255,255,0.5);">Revisado</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    });
                 }
                 
-                tbody.innerHTML = '';
-                
-                reportes.forEach(reporte => {
-                    let estadoBadge = '';
-                    let estadoClass = '';
-                    
-                    if (reporte.estado === 'revisado') {
-                        estadoBadge = '✅ Revisado';
-                        estadoClass = 'badge-aprobada';
-                    } else {
-                        estadoBadge = '⏳ Pendiente';
-                        estadoClass = 'badge-pendiente';
-                    }
-                    
-                    const fecha = new Date(reporte.created_at).toLocaleString('es-ES');
-                    
-                    tbody.innerHTML += `
-                        <tr data-estado="${reporte.estado || 'pendiente'}">
-                            <td>
-                                <strong>${reporte.usuario?.nombre || 'Desconocido'}</strong><br>
-                                <small style="color: rgba(255,255,255,0.6);">${reporte.usuario?.email || 'N/A'}</small><br>
-                                <span class="badge ${reporte.usuario?.tipo === 'artista' ? 'badge-artista' : 'badge-curador'}" style="margin-top: 0.25rem;">
-                                    ${reporte.usuario?.tipo === 'artista' ? '🎵 Artista' : '🎧 Curador'}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>${reporte.tipo_reporte || 'General'}</strong>
-                            </td>
-                            <td style="max-width: 300px;">
-                                ${reporte.descripcion || 'Sin descripción'}<br>
-                                ${reporte.playlist?.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${reporte.playlist.nombre}</small>` : ''}
-                            </td>
-                            <td>
-                                <span class="badge ${estadoClass}">${estadoBadge}</span>
-                            </td>
-                            <td style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">${fecha}</td>
-                            <td>
-                                ${reporte.estado !== 'revisado' ? `
-                                    <button class="btn-action btn-approve" onclick="marcarReporteRevisado('${reporte.id}')">✅ Revisar</button>
-                                ` : '<span style="color: rgba(255,255,255,0.5);">Completado</span>'}
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                console.log('✅ Reportes cargados:', reportes.length);
+                console.log('✅ Reportes cargados');
                 
             } catch (err) {
                 console.error('❌ Error:', err);
-                document.getElementById('tablaReportes').innerHTML = `
-                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Error al cargar reportes</td></tr>
-                `;
             }
         }
 
@@ -1826,6 +1982,7 @@
                 cargarUsuariosReales();
                 cargarPlaylistsPendientes();
                 cargarTodasPlaylists();
+                cargarTransacciones();
                 cargarTodosEnvios();
                 cargarReportes();
             }
