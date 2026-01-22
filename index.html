@@ -754,11 +754,10 @@
         // ========================================
         const SUPABASE_URL = 'https://wesmqqaijlmqhctrtaje.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_LgSAsCVW7tlDfDvkD8enyA_pQp42IZF';
-        const SUPABASE_SECRET_KEY = 'sb_secret_DPz_1zmdkqaYwRpdxM6bqg_weL-Aanr';
         
         let supabaseClient;
         if (typeof supabase !== 'undefined') {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             console.log('✅ Supabase inicializado en Admin Panel');
         } else {
             console.error('❌ Supabase no está disponible');
@@ -995,7 +994,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SUPABASE_SECRET_KEY}`
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                     },
                     body: JSON.stringify({ playlistId: spotifyId })
                 });
@@ -1249,3 +1248,12 @@
     </script>
 </body>
 </html>
+```
+
+---
+
+## ✅ **LISTO PARA COPIAR Y PEGAR**
+
+**Commit message:**
+```
+Add integrated playlist approval to admin panel
