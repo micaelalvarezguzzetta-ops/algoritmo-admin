@@ -1163,21 +1163,26 @@
                 return;
             }
             
+            // Primero dar instrucciones
+            if (!confirm('🔍 VERIFICAR PLAYLIST\n\n1. Se abrirá Spotify en una nueva pestaña\n2. Verifica los datos de la playlist\n3. Vuelve a esta pestaña para introducir los datos\n\n¿Continuar?')) {
+                return;
+            }
+            
             // Abrir Spotify en nueva pestaña
             window.open(`https://open.spotify.com/playlist/${spotifyId}`, '_blank');
             
-            // Esperar un momento para que el admin vea la playlist
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Mostrar instrucción clara
+            alert('👀 Mira la pestaña de Spotify que se abrió\n\n📝 Anota:\n- Número de seguidores\n- Nombre de la playlist\n\n✅ Luego haz click en OK para continuar');
             
-            // Mostrar formulario para introducir datos manualmente
-            const followers = prompt('👥 ¿Cuántos SEGUIDORES tiene la playlist?\n\n(Mira en la pestaña de Spotify que se abrió)\n\nEjemplo: 1234');
+            // Ahora pedir los datos
+            const followers = prompt('👥 ¿Cuántos SEGUIDORES tiene la playlist?\n\n(Introduce solo el número)\n\nEjemplo: 1234');
             
             if (!followers || followers.trim() === '' || isNaN(followers)) {
                 alert('⚠️ Debes introducir un número válido de seguidores');
                 return;
             }
             
-            const name = prompt('🎵 ¿Cuál es el NOMBRE de la playlist?\n\n(Cópialo exactamente como aparece en Spotify)');
+            const name = prompt('🎵 ¿Cuál es el NOMBRE de la playlist?\n\n(Cópialo exactamente como aparece)');
             
             if (!name || name.trim() === '') {
                 alert('⚠️ Debes introducir el nombre de la playlist');
@@ -1418,4 +1423,3 @@
     </script>
 </body>
 </html>
-
