@@ -1004,8 +1004,7 @@
                 const response = await fetch('https://wesmqqaijlmqhctrtaje.supabase.co/functions/v1/verificar-playlist-admin', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ playlistId: spotifyId })
                 });
