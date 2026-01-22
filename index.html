@@ -990,7 +990,7 @@
         }
 
         // ========================================
-        // VERIFICAR PLAYLIST EN SPOTIFY
+        // VERIFICAR PLAYLIST MANUALMENTE
         // ========================================
         async function verificarPlaylist(playlistId, spotifyId) {
             if (!spotifyId) {
@@ -998,66 +998,60 @@
                 return;
             }
             
-            try {
-                console.log('🔍 Verificando playlist:', spotifyId);
-                
-                const response = await fetch('https://wesmqqaijlmqhctrtaje.supabase.co/functions/v1/verificar-playlist-admin', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ playlistId: spotifyId })
-                });
-                
-                console.log('📡 Response status:', response.status);
-                
-                const result = await response.json();
-                console.log('📦 Response data:', result);
-                
-                if (!response.ok) {
-                    throw new Error(result.error || `HTTP ${response.status}: ${JSON.stringify(result)}`);
-                }
-                
-                const playlist = result.playlist;
-                
-                // Mostrar datos verificados
-                document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
-                    <div class="spotify-data">
-                        <h4>✅ Datos Verificados de Spotify</h4>
-                        <div class="data-grid">
-                            <div class="data-item">
-                                <div class="data-label">Nombre:</div>
-                                <div class="data-value">${playlist.name}</div>
-                            </div>
-                            <div class="data-item">
-                                <div class="data-label">Seguidores:</div>
-                                <div class="data-value">${playlist.followers.toLocaleString()}</div>
-                            </div>
-                            <div class="data-item">
-                                <div class="data-label">Dueño:</div>
-                                <div class="data-value">${playlist.owner}</div>
-                            </div>
-                            <div class="data-item">
-                                <div class="data-label">Canciones:</div>
-                                <div class="data-value">${playlist.tracks}</div>
-                            </div>
+            // Abrir Spotify en nueva pestaña
+            window.open(`https://open.spotify.com/playlist/${spotifyId}`, '_blank');
+            
+            // Mostrar formulario para introducir datos manualmente
+            const followers = prompt('👥 ¿Cuántos seguidores tiene la playlist?\n(Mira en la pestaña de Spotify que se abrió)');
+            
+            if (!followers || followers.trim() === '') {
+                alert('⚠️ Cancelado');
+                return;
+            }
+            
+            const name = prompt('🎵 ¿Cuál es el nombre exacto de la playlist?');
+            
+            if (!name || name.trim() === '') {
+                alert('⚠️ Cancelado');
+                return;
+            }
+            
+            const owner = prompt('👤 ¿Quién es el dueño de la playlist?');
+            
+            if (!owner || owner.trim() === '') {
+                alert('⚠️ Cancelado');
+                return;
+            }
+            
+            // Mostrar datos verificados
+            document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
+                <div class="spotify-data">
+                    <h4>✅ Datos Verificados Manualmente</h4>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">Nombre:</div>
+                            <div class="data-value">${name}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Seguidores:</div>
+                            <div class="data-value">${parseInt(followers).toLocaleString()}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Dueño:</div>
+                            <div class="data-value">${owner}</div>
                         </div>
                     </div>
-                `;
-                
-                // Habilitar botón aprobar
-                const btn = document.getElementById(`btnAprobar-${playlistId}`);
-                btn.disabled = false;
-                btn.dataset.followers = playlist.followers;
-                btn.dataset.name = playlist.name;
-                btn.dataset.image = playlist.image || '';
-                
-            } catch (err) {
-                console.error('❌ Error completo:', err);
-                console.error('❌ Error message:', err.message);
-                console.error('❌ Error stack:', err.stack);
-                alert('❌ Error verificando: ' + err.message);
-            }
+                </div>
+            `;
+            
+            // Habilitar botón aprobar
+            const btn = document.getElementById(`btnAprobar-${playlistId}`);
+            btn.disabled = false;
+            btn.dataset.followers = followers.trim();
+            btn.dataset.name = name.trim();
+            btn.dataset.image = '';
+            
+            console.log('✅ Datos verificados manualmente');
         }
 
         // ========================================
