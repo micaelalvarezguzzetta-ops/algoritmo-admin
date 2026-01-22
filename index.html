@@ -1439,15 +1439,15 @@
         }
 
         // ========================================
-        // CARGAR TODOS LOS ENVÍOS
+        // CARGAR TODOS LOS ENVÍOS (desde envios_canciones)
         // ========================================
         async function cargarTodosEnvios() {
             try {
-                console.log('🔄 Cargando envíos...');
+                console.log('🔄 Cargando envíos desde envios_canciones...');
                 
-                // La tabla envios tiene toda la info directamente (no necesita envios_canciones)
+                // LEER DE envios_canciones QUE ES DONDE ESTÁN LOS DATOS REALES
                 const { data: envios, error } = await supabaseClient
-                    .from('envios')
+                    .from('envios_canciones')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
@@ -1523,17 +1523,23 @@
                         estadoClass = 'badge';
                     }
                     
-                    const fecha = envio.created_at ? new Date(envio.created_at).toLocaleDateString('es-ES') : 
-                                  envio.fecha_envio ? new Date(envio.fecha_envio).toLocaleDateString('es-ES') : 'N/A';
+                    // Usar fecha_envio que es el campo correcto en envios_canciones
+                    const fecha = envio.fecha_envio ? new Date(envio.fecha_envio).toLocaleDateString('es-ES') : 
+                                  envio.created_at ? new Date(envio.created_at).toLocaleDateString('es-ES') : 'N/A';
                     
                     const artista = usuariosMap[envio.artista_id] || {};
                     const curador = usuariosMap[envio.curador_id] || {};
                     const playlist = playlistsMap[envio.playlist_id] || {};
                     
-                    // Los datos de la canción están directamente en la tabla envios
-                    const nombreCancion = envio.cancion_nombre || envio.nombre_cancion || 'Sin nombre';
-                    const urlCancion = envio.cancion_url || envio.url_spotify || '';
+                    // Campos de envios_canciones
+                    const nombreCancion = envio.cancion_nombre || 'Sin nombre';
+                    const urlCancion = envio.cancion_url || '';
                     const nombreArtista = envio.artista_nombre || artista.nombre || 'Desconocido';
+                    const tipoEnvio = envio.tipo_envio || 'N/A';
+                    const creditosUsados = envio.creditos_usados || 0;
+                    
+                    // Detectar si hay reporte (mensaje_artista empieza con [REPORTE])
+                    const tieneReporte = envio.mensaje_artista && envio.mensaje_artista.startsWith('[REPORTE]');
                     
                     tbody.innerHTML += `
                         <tr data-estado="${estado}">
@@ -1544,16 +1550,18 @@
                             <td>
                                 ${nombreCancion}<br>
                                 ${urlCancion ? `<a href="${urlCancion}" target="_blank" style="color: #1db954; font-size: 0.85rem;">🎵 Spotify</a>` : ''}
+                                ${tieneReporte ? `<br><span style="color: #ef4444; font-size: 0.8rem;">⚠️ REPORTE</span>` : ''}
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">
-                                ${playlist.nombre || envio.playlist_nombre || 'N/A'}
+                                ${playlist.nombre || 'N/A'}
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">
                                 ${curador.nombre || 'N/A'}<br>
                                 <small>${curador.email || ''}</small>
                             </td>
                             <td>
-                                <span class="badge ${estadoClass}">${estadoBadge}</span>
+                                <span class="badge ${estadoClass}">${estadoBadge}</span><br>
+                                <small style="color: rgba(255,255,255,0.5);">${tipoEnvio} | ${creditosUsados}€</small>
                             </td>
                             <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
                         </tr>
@@ -1608,12 +1616,12 @@
                     .eq('estado', 'completado')
                     .gte('created_at', inicioMes.toISOString());
                 
-                const ingresosMes = transacciones?.reduce((sum, t) => sum + (t.monto || 0), 0) || 0;
+                const ingresosMes = transacciones?.reduce((sum, t) => sum + parseFloat(t.monto || 0), 0) || 0;
                 document.getElementById('ingresosDelMes').textContent = `${ingresosMes.toFixed(2)}€`;
                 
-                // Envíos del mes
+                // Envíos del mes (DESDE envios_canciones)
                 const { data: envios } = await supabaseClient
-                    .from('envios')
+                    .from('envios_canciones')
                     .select('id')
                     .gte('created_at', inicioMes.toISOString());
                 
@@ -1634,23 +1642,48 @@
                 
                 document.getElementById('totalTransacciones').textContent = todasTrans?.length || 0;
                 
-                // Cargar reportes de usuarios
+                // Cargar reportes de usuarios (usando artista_id, no usuario_id)
                 const { data: reportes, error } = await supabaseClient
                     .from('reportes_playlist')
-                    .select(`
-                        id,
-                        tipo_reporte,
-                        descripcion,
-                        estado,
-                        created_at,
-                        usuario:usuario_id (nombre, email, tipo),
-                        playlist:playlist_id (nombre)
-                    `)
+                    .select('*')
                     .order('created_at', { ascending: false })
-                    .limit(10);
+                    .limit(20);
                 
                 if (error) {
                     console.error('❌ Error cargando reportes:', error);
+                }
+
+                console.log('📊 Reportes obtenidos:', reportes);
+                
+                // Obtener datos de artistas y playlists
+                let artistasMap = {};
+                let playlistsMap = {};
+                
+                if (reportes && reportes.length > 0) {
+                    const artistaIds = [...new Set(reportes.map(r => r.artista_id).filter(Boolean))];
+                    const playlistIds = [...new Set(reportes.map(r => r.playlist_id).filter(Boolean))];
+                    
+                    if (artistaIds.length > 0) {
+                        const { data: artistas } = await supabaseClient
+                            .from('usuarios')
+                            .select('id, nombre, email')
+                            .in('id', artistaIds);
+                        
+                        if (artistas) {
+                            artistas.forEach(a => artistasMap[a.id] = a);
+                        }
+                    }
+                    
+                    if (playlistIds.length > 0) {
+                        const { data: playlists } = await supabaseClient
+                            .from('playlists')
+                            .select('id, nombre')
+                            .in('id', playlistIds);
+                        
+                        if (playlists) {
+                            playlists.forEach(p => playlistsMap[p.id] = p);
+                        }
+                    }
                 }
                 
                 const tbody = document.getElementById('tablaReportesUsuarios');
@@ -1673,19 +1706,21 @@
                         }
                         
                         const fecha = new Date(reporte.created_at).toLocaleString('es-ES');
+                        const artista = artistasMap[reporte.artista_id] || {};
+                        const playlist = playlistsMap[reporte.playlist_id] || {};
                         
                         tbody.innerHTML += `
                             <tr data-estado="${reporte.estado || 'pendiente'}">
                                 <td>
-                                    <strong>${reporte.usuario?.nombre || 'Desconocido'}</strong><br>
-                                    <small style="color: rgba(255,255,255,0.6);">${reporte.usuario?.email || 'N/A'}</small>
+                                    <strong>${artista.nombre || 'Desconocido'}</strong><br>
+                                    <small style="color: rgba(255,255,255,0.6);">${artista.email || 'N/A'}</small>
                                 </td>
                                 <td>
-                                    <strong>${reporte.tipo_reporte || 'General'}</strong>
+                                    <strong>${reporte.tipo_reporte || reporte.motivo || 'General'}</strong>
                                 </td>
                                 <td style="max-width: 300px;">
-                                    ${reporte.descripcion || 'Sin descripción'}<br>
-                                    ${reporte.playlist?.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${reporte.playlist.nombre}</small>` : ''}
+                                    ${reporte.descripcion || reporte.motivo || 'Sin descripción'}<br>
+                                    ${playlist.nombre ? `<small style="color: rgba(255,255,255,0.5);">Playlist: ${playlist.nombre}</small>` : ''}
                                 </td>
                                 <td>
                                     <span class="badge ${estadoClass}">${estadoBadge}</span>
