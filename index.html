@@ -511,6 +511,92 @@
             color: white;
             font-weight: 600;
         }
+
+        /* Modal de verificación */
+        .verify-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .verify-modal.active {
+            display: flex;
+        }
+
+        .verify-modal-content {
+            background: #1e293b;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .verify-modal h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+        }
+
+        .verify-field {
+            margin-bottom: 1.5rem;
+        }
+
+        .verify-field label {
+            display: block;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .verify-field input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .verify-field input:focus {
+            outline: none;
+            border-color: #7c3aed;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .verify-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .verify-buttons button {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-verify-submit {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-verify-cancel {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -779,6 +865,37 @@
                     <button class="btn-danger" onclick="limpiarCache()">🧹 Limpiar Caché</button>
                     <button class="btn-danger" onclick="resetearDatos()">⚠️ Resetear Datos Demo</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Verificación -->
+    <div class="verify-modal" id="verifyModal">
+        <div class="verify-modal-content">
+            <h3>🔍 Verificar Datos de Spotify</h3>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem;">
+                Se ha abierto la playlist en Spotify. Revisa los datos y completa el formulario:
+            </p>
+            
+            <div class="verify-field">
+                <label for="verifyFollowers">👥 Número de Seguidores:</label>
+                <input type="number" id="verifyFollowers" placeholder="Ej: 1234" required>
+            </div>
+            
+            <div class="verify-field">
+                <label for="verifyName">🎵 Nombre de la Playlist:</label>
+                <input type="text" id="verifyName" placeholder="Nombre exacto" required>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <small style="color: rgba(255,255,255,0.8);">
+                    💡 Verifica que el dueño de la playlist coincida con el email del curador
+                </small>
+            </div>
+            
+            <div class="verify-buttons">
+                <button class="btn-verify-cancel" onclick="closeVerifyModal()">❌ Cancelar</button>
+                <button class="btn-verify-submit" onclick="submitVerification()">✅ Verificar</button>
             </div>
         </div>
     </div>
@@ -1155,42 +1272,59 @@
         }
 
         // ========================================
-        // VERIFICAR PLAYLIST MANUALMENTE
+        // VARIABLES GLOBALES PARA VERIFICACIÓN
         // ========================================
-        async function verificarPlaylist(playlistId, spotifyId) {
+        let currentVerifyPlaylistId = null;
+
+        // ========================================
+        // VERIFICAR PLAYLIST CON MODAL
+        // ========================================
+        function verificarPlaylist(playlistId, spotifyId) {
             if (!spotifyId) {
                 alert('⚠️ Esta playlist no tiene ID de Spotify');
                 return;
             }
             
-            // Primero dar instrucciones
-            if (!confirm('🔍 VERIFICAR PLAYLIST\n\n1. Se abrirá Spotify en una nueva pestaña\n2. Verifica los datos de la playlist\n3. Vuelve a esta pestaña para introducir los datos\n\n¿Continuar?')) {
-                return;
-            }
+            // Guardar el ID para usar después
+            currentVerifyPlaylistId = playlistId;
             
             // Abrir Spotify en nueva pestaña
             window.open(`https://open.spotify.com/playlist/${spotifyId}`, '_blank');
             
-            // Mostrar instrucción clara
-            alert('👀 Mira la pestaña de Spotify que se abrió\n\n📝 Anota:\n- Número de seguidores\n- Nombre de la playlist\n\n✅ Luego haz click en OK para continuar');
+            // Mostrar modal
+            document.getElementById('verifyModal').classList.add('active');
+            document.getElementById('verifyFollowers').value = '';
+            document.getElementById('verifyName').value = '';
+            setTimeout(() => document.getElementById('verifyFollowers').focus(), 100);
+        }
+
+        // ========================================
+        // CERRAR MODAL DE VERIFICACIÓN
+        // ========================================
+        function closeVerifyModal() {
+            document.getElementById('verifyModal').classList.remove('active');
+            currentVerifyPlaylistId = null;
+        }
+
+        // ========================================
+        // ENVIAR VERIFICACIÓN
+        // ========================================
+        function submitVerification() {
+            const followers = document.getElementById('verifyFollowers').value.trim();
+            const name = document.getElementById('verifyName').value.trim();
             
-            // Ahora pedir los datos
-            const followers = prompt('👥 ¿Cuántos SEGUIDORES tiene la playlist?\n\n(Introduce solo el número)\n\nEjemplo: 1234');
-            
-            if (!followers || followers.trim() === '' || isNaN(followers)) {
+            if (!followers || isNaN(followers) || parseInt(followers) < 0) {
                 alert('⚠️ Debes introducir un número válido de seguidores');
                 return;
             }
             
-            const name = prompt('🎵 ¿Cuál es el NOMBRE de la playlist?\n\n(Cópialo exactamente como aparece)');
-            
-            if (!name || name.trim() === '') {
+            if (!name) {
                 alert('⚠️ Debes introducir el nombre de la playlist');
                 return;
             }
             
             // Mostrar datos verificados
-            document.getElementById(`spotifyData-${playlistId}`).innerHTML = `
+            document.getElementById(`spotifyData-${currentVerifyPlaylistId}`).innerHTML = `
                 <div class="spotify-data">
                     <h4>✅ Datos Verificados</h4>
                     <div class="data-grid">
@@ -1204,20 +1338,30 @@
                         </div>
                     </div>
                     <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.8); font-size: 0.9rem;">
-                        💡 Verifica que el dueño de la playlist coincida con el email del curador antes de aprobar
+                        💡 Verificado manualmente por el administrador
                     </div>
                 </div>
             `;
             
             // Habilitar botón aprobar
-            const btn = document.getElementById(`btnAprobar-${playlistId}`);
+            const btn = document.getElementById(`btnAprobar-${currentVerifyPlaylistId}`);
             btn.disabled = false;
-            btn.dataset.followers = followers.trim();
-            btn.dataset.name = name.trim();
+            btn.dataset.followers = followers;
+            btn.dataset.name = name;
             btn.dataset.image = '';
             
             console.log('✅ Datos verificados manualmente');
+            
+            // Cerrar modal
+            closeVerifyModal();
         }
+
+        // Cerrar modal con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('verifyModal').classList.contains('active')) {
+                closeVerifyModal();
+            }
+        });
 
         // ========================================
         // APROBAR PLAYLIST
