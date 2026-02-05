@@ -923,7 +923,7 @@
                 <div class="filters">
                     <button class="filter-btn active" onclick="filtrarAfiliados('todos')">📊 Todos</button>
                     <button class="filter-btn" onclick="filtrarAfiliados('pendiente')">⏳ Pendientes</button>
-                    <button class="filter-btn" onclick="filtrarAfiliados('aprobado')">✅ Aprobados</button>
+                    <button class="filter-btn" onclick="filtrarAfiliados('aceptado')">✅ Aprobados</button>
                     <button class="filter-btn" onclick="filtrarAfiliados('rechazado')">❌ Rechazados</button>
                 </div>
                 
@@ -1649,7 +1649,7 @@
                     
                     const estado = (envio.estado || '').toLowerCase();
                     
-                    if (estado === 'aceptado' || estado === 'aprobado') {
+                    if (estado === 'aceptado' || estado === 'aceptado') {
                         estadoBadge = '✅ Aceptado';
                         estadoClass = 'badge-aprobada';
                     } else if (estado === 'pendiente') {
@@ -2260,7 +2260,7 @@
                 // Actualizar contador de pendientes
                 const pendientes = afiliados.filter(a => {
                     const est = (a.estado || '').toLowerCase().trim();
-                    return est !== 'aprobado' && est !== 'rechazado';
+                    return est !== 'aceptado' && est !== 'rechazado';
                 }).length;
                 document.getElementById('afiliadosPendientes').textContent = pendientes;
                 
@@ -2270,7 +2270,7 @@
                     
                     console.log('Afiliado:', afiliado.nombre, 'Estado:', estado, 'Original:', afiliado.estado);
                     
-                    const estadoBadge = estado === 'aprobado' 
+                    const estadoBadge = estado === 'aceptado' 
                         ? '<span class="badge badge-aprobada">✅ Aprobado</span>'
                         : estado === 'rechazado'
                         ? '<span class="badge" style="background: rgba(239,68,68,0.2); color: #ef4444;">❌ Rechazado</span>'
@@ -2279,10 +2279,10 @@
                     const link = `https://algoritmoenmovimiento.com/?ref=${afiliado.codigo_afiliado}`;
                     
                     // Mostrar botones si NO está aprobado ni rechazado
-                    const acciones = (estado !== 'aprobado' && estado !== 'rechazado')
+                    const acciones = (estado !== 'aceptado' && estado !== 'rechazado')
                         ? `<button class="btn-action btn-approve" onclick="aprobarAfiliado('${afiliado.id}', '${afiliado.email}', '${afiliado.nombre}', '${afiliado.codigo_afiliado}')">✅ Aprobar</button>
                            <button class="btn-action btn-reject" onclick="rechazarAfiliado('${afiliado.id}')">❌ Rechazar</button>`
-                        : estado === 'aprobado'
+                        : estado === 'aceptado'
                         ? `<button class="btn-action btn-view" onclick="copiarLink('${link}')">📋 Copiar Link</button>`
                         : '-';
                     
@@ -2337,7 +2337,7 @@
                 const { error } = await supabaseClient
                     .from('solicitudes_afiliados')
                     .update({ 
-                        estado: 'aprobado',
+                        estado: 'aceptado',
                         notificado: true 
                     })
                     .eq('id', id);
