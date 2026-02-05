@@ -2258,28 +2258,36 @@
                 }
                 
                 // Actualizar contador de pendientes
-                const pendientes = afiliados.filter(a => a.estado === 'pendiente').length;
+                const pendientes = afiliados.filter(a => {
+                    const est = (a.estado || '').toLowerCase().trim();
+                    return est !== 'aprobado' && est !== 'rechazado';
+                }).length;
                 document.getElementById('afiliadosPendientes').textContent = pendientes;
                 
                 tbody.innerHTML = afiliados.map(afiliado => {
                     const fecha = new Date(afiliado.created_at).toLocaleDateString('es-ES');
-                    const estadoBadge = afiliado.estado === 'aprobado' 
+                    const estado = (afiliado.estado || 'pendiente').toLowerCase().trim();
+                    
+                    console.log('Afiliado:', afiliado.nombre, 'Estado:', estado, 'Original:', afiliado.estado);
+                    
+                    const estadoBadge = estado === 'aprobado' 
                         ? '<span class="badge badge-aprobada">✅ Aprobado</span>'
-                        : afiliado.estado === 'rechazado'
+                        : estado === 'rechazado'
                         ? '<span class="badge" style="background: rgba(239,68,68,0.2); color: #ef4444;">❌ Rechazado</span>'
                         : '<span class="badge badge-pendiente">⏳ Pendiente</span>';
                     
                     const link = `https://algoritmoenmovimiento.com/?ref=${afiliado.codigo_afiliado}`;
                     
-                    const acciones = afiliado.estado === 'pendiente' 
+                    // Mostrar botones si NO está aprobado ni rechazado
+                    const acciones = (estado !== 'aprobado' && estado !== 'rechazado')
                         ? `<button class="btn-action btn-approve" onclick="aprobarAfiliado('${afiliado.id}', '${afiliado.email}', '${afiliado.nombre}', '${afiliado.codigo_afiliado}')">✅ Aprobar</button>
                            <button class="btn-action btn-reject" onclick="rechazarAfiliado('${afiliado.id}')">❌ Rechazar</button>`
-                        : afiliado.estado === 'aprobado'
+                        : estado === 'aprobado'
                         ? `<button class="btn-action btn-view" onclick="copiarLink('${link}')">📋 Copiar Link</button>`
                         : '-';
                     
                     return `
-                        <tr data-estado="${afiliado.estado}">
+                        <tr data-estado="${estado}">
                             <td>${afiliado.nombre}</td>
                             <td style="color: rgba(255,255,255,0.7);">${afiliado.email}</td>
                             <td>${afiliado.instagram || '-'}</td>
