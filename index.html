@@ -2332,102 +2332,81 @@
                 return;
             }
             
+            console.log('🔄 Aprobando afiliado:', { id, email, nombre, codigo });
+            
             try {
                 // Actualizar estado en Supabase
-                const { error } = await supabaseClient
+                const { data, error } = await supabaseClient
                     .from('solicitudes_afiliados')
                     .update({ 
                         estado: 'aceptado',
                         notificado: true 
                     })
-                    .eq('id', id);
+                    .eq('id', id)
+                    .select();
                 
-                if (error) throw error;
+                console.log('📝 Resultado update:', { data, error });
+                
+                if (error) {
+                    console.error('❌ Error Supabase:', error);
+                    throw error;
+                }
+                
+                if (!data || data.length === 0) {
+                    console.error('⚠️ No se actualizó ningún registro');
+                    alert('⚠️ Error: No se encontró el afiliado o no tienes permisos para actualizarlo.\n\nRevisa las políticas RLS en Supabase.');
+                    return;
+                }
+                
+                console.log('✅ Estado actualizado correctamente:', data);
                 
                 // Enviar email con Resend
                 const link = `https://algoritmoenmovimiento.com/?ref=${codigo}`;
                 
-                await enviarEmailAfiliado(email, nombre, codigo, link);
+                try {
+                    await enviarEmailAfiliado(email, nombre, codigo, link);
+                    alert('✅ Afiliado aprobado y email enviado correctamente');
+                } catch (emailErr) {
+                    console.error('Error email:', emailErr);
+                    alert('⚠️ Afiliado aprobado pero hubo un error enviando el email.\n\nLink para enviar manualmente:\n' + link);
+                }
                 
-                alert('✅ Afiliado aprobado y email enviado correctamente');
                 cargarAfiliados();
                 
             } catch (err) {
-                console.error('❌ Error:', err);
-                alert('❌ Error: ' + err.message);
+                console.error('❌ Error completo:', err);
+                alert('❌ Error: ' + (err.message || JSON.stringify(err)));
             }
         }
 
-        // Enviar email con Resend
+        // Enviar email con Resend (a través de API serverless)
         async function enviarEmailAfiliado(email, nombre, codigo, link) {
             try {
-                const response = await fetch('https://api.resend.com/emails', {
+                const response = await fetch('https://algoritmo-admin.vercel.app/api/send-email', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${RESEND_API_KEY}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        from: 'Algoritmo en Movimiento <onboarding@resend.dev>',
-                        to: email,
-                        subject: '🎉 ¡Bienvenido al Programa de Afiliados!',
-                        html: `
-                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; text-align: center; color: white;">
-                                    <h1 style="margin: 0; font-size: 28px;">🎉 ¡Felicidades ${nombre}!</h1>
-                                    <p style="margin-top: 10px; font-size: 16px;">Tu solicitud de afiliado ha sido aprobada</p>
-                                </div>
-                                
-                                <div style="padding: 30px; background: #f8f9fa; border-radius: 0 0 15px 15px;">
-                                    <h2 style="color: #333;">Tu información de afiliado:</h2>
-                                    
-                                    <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #667eea;">
-                                        <p style="margin: 5px 0;"><strong>📌 Tu código de afiliado:</strong></p>
-                                        <p style="font-size: 24px; font-weight: bold; color: #667eea; margin: 10px 0;">${codigo}</p>
-                                    </div>
-                                    
-                                    <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #10b981;">
-                                        <p style="margin: 5px 0;"><strong>🔗 Tu link personalizado:</strong></p>
-                                        <p style="word-break: break-all; color: #10b981; margin: 10px 0;">
-                                            <a href="${link}" style="color: #10b981;">${link}</a>
-                                        </p>
-                                    </div>
-                                    
-                                    <h3 style="color: #333; margin-top: 30px;">💰 ¿Cómo funciona?</h3>
-                                    <ul style="color: #666; line-height: 1.8;">
-                                        <li>Comparte tu link con artistas y músicos</li>
-                                        <li>Cuando se registren y compren, <strong>tú ganas el 15% de comisión</strong></li>
-                                        <li>Ellos obtienen <strong>20% de descuento</strong> en su primera compra de paquetes</li>
-                                        <li>Puedes retirar tus ganancias desde 50€</li>
-                                    </ul>
-                                    
-                                    <div style="text-align: center; margin-top: 30px;">
-                                        <a href="${link}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 30px; text-decoration: none; font-weight: bold;">
-                                            🚀 Empezar a Compartir
-                                        </a>
-                                    </div>
-                                </div>
-                                
-                                <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-                                    <p>© 2026 Algoritmo en Movimiento</p>
-                                    <p>¿Preguntas? Escríbenos a soportealgoritmoenmovimiento@gmail.com</p>
-                                </div>
-                            </div>
-                        `
+                        email: email,
+                        nombre: nombre,
+                        codigo: codigo,
+                        link: link
                     })
                 });
                 
                 const data = await response.json();
-                console.log('📧 Email enviado:', data);
+                console.log('📧 Respuesta API:', data);
                 
                 if (!response.ok) {
-                    throw new Error(data.message || 'Error enviando email');
+                    throw new Error(data.error || 'Error enviando email');
                 }
+                
+                return true;
                 
             } catch (err) {
                 console.error('❌ Error enviando email:', err);
-                // No lanzar error para no bloquear la aprobación
-                alert('⚠️ Afiliado aprobado pero hubo un error enviando el email. Contacta manualmente.');
+                throw err;
             }
         }
 
