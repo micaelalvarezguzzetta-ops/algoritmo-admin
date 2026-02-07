@@ -669,6 +669,10 @@
                     <div class="stat-value" style="color: #f59e0b;" id="retirosPendientes">0</div>
                     <div class="stat-label">Retiros Pendientes</div>
                 </div>
+                <div class="stat-card" style="border-color: #eab308;">
+                    <div class="stat-value" style="color: #eab308;" id="destacarPendientes">0</div>
+                    <div class="stat-label">Destacar Pendientes</div>
+                </div>
             </div>
 
             <!-- Tabs -->
@@ -681,6 +685,7 @@
                 <button class="tab-btn" onclick="changeTab('afiliados')">🤝 Afiliados</button>
                 <button class="tab-btn" onclick="changeTab('comisionesAfiliados')">💸 Comisiones</button>
                 <button class="tab-btn" onclick="changeTab('retiros')">🏦 Retiros</button>
+                <button class="tab-btn" onclick="changeTab('destacar')">⭐ Destacar</button>
                 <button class="tab-btn" onclick="changeTab('reportes')">📊 Reportes</button>
                 <button class="tab-btn" onclick="changeTab('configuracion')">⚙️ Configuración</button>
             </div>
@@ -1036,6 +1041,51 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Tab: Destacar Playlists -->
+            <div class="tab-content" id="tabDestacar">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">⭐ Solicitudes Destacar Playlist</h2>
+                
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card" style="border-color: #eab308;">
+                        <div class="stat-value" style="color: #eab308;" id="totalDestacarPendientes">0</div>
+                        <div class="stat-label">Solicitudes Pendientes</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #10b981;">
+                        <div class="stat-value" style="color: #10b981;" id="totalDestacarActivas">0</div>
+                        <div class="stat-label">Playlists Destacadas</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #8b5cf6;">
+                        <div class="stat-value" style="color: #8b5cf6;" id="ingresoDestacar">€0</div>
+                        <div class="stat-label">Ingresos Este Mes</div>
+                    </div>
+                </div>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarDestacar('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarDestacar('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarDestacar('aprobado')">✅ Aprobados</button>
+                    <button class="filter-btn" onclick="filtrarDestacar('rechazado')">❌ Rechazados</button>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Curador</th>
+                                <th>Playlist</th>
+                                <th>Precio</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaDestacar">
+                            <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">Cargando solicitudes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1172,6 +1222,8 @@
                 cargarComisionesAfiliados();
             } else if (tabName === 'retiros') {
                 cargarRetiros();
+            } else if (tabName === 'destacar') {
+                cargarSolicitudesDestacar();
             }
         }
 
@@ -2691,8 +2743,215 @@
                 cargarReportes();
                 cargarAfiliados();
                 cargarRetiros();
+                cargarSolicitudesDestacar();
             }
         });
+
+        // ==================== DESTACAR PLAYLISTS ====================
+        
+        let todasSolicitudesDestacar = [];
+        
+        async function cargarSolicitudesDestacar() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('solicitudes_destacar')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('Error cargando solicitudes destacar:', error);
+                    document.getElementById('tablaDestacar').innerHTML = `
+                        <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                            Error al cargar o tabla no existe
+                        </td></tr>`;
+                    return;
+                }
+                
+                todasSolicitudesDestacar = data || [];
+                
+                // Actualizar contadores
+                const pendientes = todasSolicitudesDestacar.filter(s => s.estado === 'pendiente');
+                const aprobados = todasSolicitudesDestacar.filter(s => s.estado === 'aprobado');
+                
+                document.getElementById('destacarPendientes').textContent = pendientes.length;
+                document.getElementById('totalDestacarPendientes').textContent = pendientes.length;
+                document.getElementById('totalDestacarActivas').textContent = aprobados.length;
+                
+                // Calcular ingresos del mes
+                const inicioMes = new Date();
+                inicioMes.setDate(1);
+                inicioMes.setHours(0, 0, 0, 0);
+                
+                const ingresosMes = aprobados
+                    .filter(s => new Date(s.aprobado_at) >= inicioMes)
+                    .reduce((sum, s) => sum + (s.precio || 14.99), 0);
+                
+                document.getElementById('ingresoDestacar').textContent = `€${ingresosMes.toFixed(2)}`;
+                
+                renderizarSolicitudesDestacar(todasSolicitudesDestacar);
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        function renderizarSolicitudesDestacar(solicitudes) {
+            const tbody = document.getElementById('tablaDestacar');
+            
+            if (!solicitudes || solicitudes.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                        No hay solicitudes de destacar
+                    </td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = solicitudes.map(s => {
+                const fecha = new Date(s.created_at).toLocaleDateString('es-ES');
+                
+                let estadoBadge = '';
+                let acciones = '';
+                
+                if (s.estado === 'pendiente') {
+                    estadoBadge = '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>';
+                    acciones = `
+                        <button onclick="aprobarDestacar('${s.id}', '${s.playlist_id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.5rem;">✅ Aprobar</button>
+                        <button onclick="rechazarDestacar('${s.id}')" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">❌ Rechazar</button>
+                    `;
+                } else if (s.estado === 'aprobado') {
+                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Aprobado</span>';
+                    acciones = `<button onclick="quitarDestacado('${s.id}', '${s.playlist_id}')" style="background: #6b7280; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">🚫 Quitar</button>`;
+                } else if (s.estado === 'rechazado') {
+                    estadoBadge = '<span style="background: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">❌ Rechazado</span>';
+                    acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">${s.motivo_rechazo || 'Sin motivo'}</span>`;
+                }
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${s.curador_nombre || 'Sin nombre'}</div>
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${s.curador_email || ''}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600;">🎵 ${s.playlist_nombre || 'Playlist'}</div>
+                        </td>
+                        <td style="font-weight: 700; color: #10b981;">€${(s.precio || 14.99).toFixed(2)}/mes</td>
+                        <td>${estadoBadge}</td>
+                        <td>${fecha}</td>
+                        <td>${acciones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function filtrarDestacar(estado) {
+            // Actualizar botones activos
+            document.querySelectorAll('#tabDestacar .filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (estado === 'todos') {
+                renderizarSolicitudesDestacar(todasSolicitudesDestacar);
+            } else {
+                const filtradas = todasSolicitudesDestacar.filter(s => s.estado === estado);
+                renderizarSolicitudesDestacar(filtradas);
+            }
+        }
+        
+        async function aprobarDestacar(id, playlistId) {
+            if (!confirm('✅ ¿Aprobar esta solicitud?\n\nLa playlist será marcada como DESTACADA y aparecerá en la sección TOP.')) {
+                return;
+            }
+            
+            try {
+                // Actualizar solicitud
+                const { error: errorSolicitud } = await supabaseClient
+                    .from('solicitudes_destacar')
+                    .update({ 
+                        estado: 'aprobado',
+                        aprobado_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (errorSolicitud) throw errorSolicitud;
+                
+                // Marcar playlist como destacada
+                const { error: errorPlaylist } = await supabaseClient
+                    .from('playlists')
+                    .update({ destacada: true })
+                    .eq('id', playlistId);
+                
+                if (errorPlaylist) {
+                    console.warn('No se pudo actualizar playlist:', errorPlaylist);
+                }
+                
+                alert('✅ Solicitud aprobada\n\nLa playlist ahora está destacada.');
+                cargarSolicitudesDestacar();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+        
+        async function rechazarDestacar(id) {
+            const motivo = prompt('Motivo del rechazo:');
+            if (!motivo) {
+                alert('⚠️ Debes proporcionar un motivo');
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('solicitudes_destacar')
+                    .update({ 
+                        estado: 'rechazado',
+                        motivo_rechazo: motivo
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('❌ Solicitud rechazada');
+                cargarSolicitudesDestacar();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+        
+        async function quitarDestacado(id, playlistId) {
+            if (!confirm('🚫 ¿Quitar el destacado de esta playlist?\n\nLa playlist dejará de aparecer en TOP.')) {
+                return;
+            }
+            
+            try {
+                // Actualizar solicitud
+                const { error: errorSolicitud } = await supabaseClient
+                    .from('solicitudes_destacar')
+                    .update({ estado: 'cancelado' })
+                    .eq('id', id);
+                
+                if (errorSolicitud) throw errorSolicitud;
+                
+                // Quitar destacado de playlist
+                const { error: errorPlaylist } = await supabaseClient
+                    .from('playlists')
+                    .update({ destacada: false })
+                    .eq('id', playlistId);
+                
+                if (errorPlaylist) {
+                    console.warn('No se pudo actualizar playlist:', errorPlaylist);
+                }
+                
+                alert('🚫 Destacado removido');
+                cargarSolicitudesDestacar();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
     </script>
 </body>
 </html>
