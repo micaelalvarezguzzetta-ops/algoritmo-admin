@@ -1,7 +1,7 @@
 const https = require('https');
 
 export default async function handler(req, res) {
-    // CORS
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,23 +27,44 @@ export default async function handler(req, res) {
                 <p>Tu solicitud de afiliado ha sido aprobada</p>
             </div>
             <div style="padding: 30px; background: #f8f9fa;">
-                <h2 style="color: #333;">Tu código: <span style="color: #667eea;">${codigo}</span></h2>
-                <p><strong>Tu link personalizado:</strong></p>
-                <p><a href="${link}" style="color: #10b981;">${link}</a></p>
-                <h3>💰 ¿Cómo funciona?</h3>
-                <ul>
-                    <li>Comparte tu link con artistas</li>
-                    <li>Ganas 15% de comisión en cada compra</li>
-                    <li>Ellos obtienen 20% de descuento</li>
+                <h2 style="color: #333;">Tu código de afiliado:</h2>
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 25px; border-radius: 10px; font-size: 24px; font-weight: bold; text-align: center; margin: 15px 0;">
+                    ${codigo}
+                </div>
+                
+                <h3 style="color: #333; margin-top: 25px;">🔗 Tu link personalizado:</h3>
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; word-break: break-all;">
+                    <a href="${link}" style="color: #10b981; font-weight: bold;">${link}</a>
+                </div>
+                
+                <h3 style="color: #333; margin-top: 25px;">💰 ¿Cómo funciona?</h3>
+                <ul style="color: #555; line-height: 1.8;">
+                    <li><strong>Comparte tu link</strong> con artistas que quieran promocionar su música</li>
+                    <li><strong>Ganas 15% de comisión</strong> en cada compra que hagan</li>
+                    <li><strong>Ellos obtienen 20% de descuento</strong> en su primera compra</li>
+                    <li><strong>Sin límites:</strong> Cuantos más artistas traigas, más ganas</li>
                 </ul>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <strong>💡 Consejo:</strong> Comparte tu link en redes sociales, grupos de música, y con artistas que conozcas.
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="https://algoritmoenmovimiento.com" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold;">
+                        Ir a mi panel de afiliado
+                    </a>
+                </div>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p>© 2026 Algoritmo en Movimiento - Todos los derechos reservados</p>
             </div>
         </div>
     `;
 
     const postData = JSON.stringify({
-        from: 'Algoritmo en Movimiento <onboarding@resend.dev>',
+        from: 'Algoritmo en Movimiento <noreply@algoritmoenmovimiento.com>',
         to: email,
-        subject: '🎉 ¡Bienvenido al Programa de Afiliados!',
+        subject: '🎉 ¡Bienvenido al Programa de Afiliados de Algoritmo!',
         html: emailHtml
     });
 
