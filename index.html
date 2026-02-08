@@ -673,6 +673,10 @@
                     <div class="stat-value" style="color: #eab308;" id="destacarPendientes">0</div>
                     <div class="stat-label">Destacar Pendientes</div>
                 </div>
+                <div class="stat-card" style="border-color: #f472b6;">
+                    <div class="stat-value" style="color: #f472b6;" id="canjesPendientes">0</div>
+                    <div class="stat-label">Canjes Pendientes</div>
+                </div>
             </div>
 
             <!-- Tabs -->
@@ -686,6 +690,7 @@
                 <button class="tab-btn" onclick="changeTab('comisionesAfiliados')">💸 Comisiones</button>
                 <button class="tab-btn" onclick="changeTab('retiros')">🏦 Retiros</button>
                 <button class="tab-btn" onclick="changeTab('destacar')">⭐ Destacar</button>
+                <button class="tab-btn" onclick="changeTab('canjes')">📦 Canjes</button>
                 <button class="tab-btn" onclick="changeTab('reportes')">📊 Reportes</button>
                 <button class="tab-btn" onclick="changeTab('configuracion')">⚙️ Configuración</button>
             </div>
@@ -1086,6 +1091,50 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Tab: Canjes de Servicios -->
+            <div class="tab-content" id="tabCanjes">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">📦 Canjes de Servicios</h2>
+                
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card" style="border-color: #f472b6;">
+                        <div class="stat-value" style="color: #f472b6;" id="totalCanjesPendientes">0</div>
+                        <div class="stat-label">Canjes Pendientes</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #10b981;">
+                        <div class="stat-value" style="color: #10b981;" id="totalCanjesCompletados">0</div>
+                        <div class="stat-label">Completados Este Mes</div>
+                    </div>
+                    <div class="stat-card" style="border-color: #8b5cf6;">
+                        <div class="stat-value" style="color: #8b5cf6;" id="totalPuntosCanjeados">0</div>
+                        <div class="stat-label">Puntos Canjeados</div>
+                    </div>
+                </div>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filtrarCanjes('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('pendiente')">⏳ Pendientes</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('completado')">✅ Completados</button>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Curador</th>
+                                <th>Servicio</th>
+                                <th>Puntos</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaCanjes">
+                            <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">Cargando canjes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1224,6 +1273,8 @@
                 cargarRetiros();
             } else if (tabName === 'destacar') {
                 cargarSolicitudesDestacar();
+            } else if (tabName === 'canjes') {
+                cargarCanjes();
             }
         }
 
@@ -2744,6 +2795,7 @@
                 cargarAfiliados();
                 cargarRetiros();
                 cargarSolicitudesDestacar();
+                cargarCanjes();
             }
         });
 
@@ -2946,6 +2998,141 @@
                 
                 alert('🚫 Destacado removido');
                 cargarSolicitudesDestacar();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ==================== CANJES DE SERVICIOS ====================
+        
+        let todosCanjes = [];
+        
+        const serviciosNombres = {
+            'envio_playlist': '🎵 Envío a Playlists',
+            'promo_tiktok': '📱 Promo TikTok',
+            'playlist_top': '🏆 Playlist TOP',
+            'mastering_ia': '🎛️ Mastering IA',
+            'portadas_ia': '🎨 Portadas IA'
+        };
+        
+        async function cargarCanjes() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canjes_servicios')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('Error cargando canjes:', error);
+                    document.getElementById('tablaCanjes').innerHTML = `
+                        <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                            Error al cargar o tabla no existe
+                        </td></tr>`;
+                    return;
+                }
+                
+                todosCanjes = data || [];
+                
+                // Actualizar contadores
+                const pendientes = todosCanjes.filter(c => c.estado === 'pendiente');
+                const completados = todosCanjes.filter(c => c.estado === 'completado');
+                const totalPuntos = todosCanjes.reduce((sum, c) => sum + (c.puntos || 0), 0);
+                
+                document.getElementById('canjesPendientes').textContent = pendientes.length;
+                document.getElementById('totalCanjesPendientes').textContent = pendientes.length;
+                document.getElementById('totalCanjesCompletados').textContent = completados.length;
+                document.getElementById('totalPuntosCanjeados').textContent = totalPuntos;
+                
+                renderizarCanjes(todosCanjes);
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        function renderizarCanjes(canjes) {
+            const tbody = document.getElementById('tablaCanjes');
+            
+            if (!canjes || canjes.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                        No hay canjes de servicios
+                    </td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = canjes.map(c => {
+                const fecha = new Date(c.created_at).toLocaleDateString('es-ES');
+                const servicioNombre = serviciosNombres[c.tipo] || c.tipo;
+                
+                let estadoBadge = '';
+                let acciones = '';
+                
+                if (c.estado === 'pendiente') {
+                    estadoBadge = '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>';
+                    acciones = `
+                        <button onclick="completarCanje('${c.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅ Completar</button>
+                    `;
+                } else if (c.estado === 'completado') {
+                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
+                    const fechaCompletado = c.completado_at ? new Date(c.completado_at).toLocaleDateString('es-ES') : '-';
+                    acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Completado: ${fechaCompletado}</span>`;
+                }
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${c.curador_nombre || 'Sin nombre'}</div>
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${c.curador_email || ''}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600;">${servicioNombre}</div>
+                        </td>
+                        <td style="font-weight: 700; color: #f472b6;">${c.puntos} puntos</td>
+                        <td>${estadoBadge}</td>
+                        <td>${fecha}</td>
+                        <td>${acciones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function filtrarCanjes(estado) {
+            // Actualizar botones activos
+            document.querySelectorAll('#tabCanjes .filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (estado === 'todos') {
+                renderizarCanjes(todosCanjes);
+            } else {
+                const filtrados = todosCanjes.filter(c => c.estado === estado);
+                renderizarCanjes(filtrados);
+            }
+        }
+        
+        async function completarCanje(id) {
+            const notas = prompt('Añade una nota sobre el servicio completado (opcional):') || '';
+            
+            if (!confirm('✅ ¿Marcar este canje como COMPLETADO?')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('canjes_servicios')
+                    .update({ 
+                        estado: 'completado',
+                        completado_at: new Date().toISOString(),
+                        notas: notas
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ Canje marcado como completado');
+                cargarCanjes();
                 
             } catch (err) {
                 console.error('Error:', err);
