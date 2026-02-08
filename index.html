@@ -691,6 +691,9 @@
                 <button class="tab-btn" onclick="changeTab('retiros')">🏦 Retiros</button>
                 <button class="tab-btn" onclick="changeTab('destacar')">⭐ Destacar</button>
                 <button class="tab-btn" onclick="changeTab('canjes')">📦 Canjes</button>
+                <button class="tab-btn" onclick="changeTab('smartlinks')">🔗 SmartLinks</button>
+                <button class="tab-btn" onclick="changeTab('mastering')">🎛️ Mastering</button>
+                <button class="tab-btn" onclick="changeTab('portadas')">🎨 Portadas</button>
                 <button class="tab-btn" onclick="changeTab('reportes')">📊 Reportes</button>
                 <button class="tab-btn" onclick="changeTab('configuracion')">⚙️ Configuración</button>
             </div>
@@ -1136,6 +1139,110 @@
                 </div>
             </div>
         </div>
+
+            <!-- Tab: SmartLinks -->
+            <div class="tab-content" id="tabSmartlinks">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🔗 Solicitudes de SmartLinks</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div style="background: rgba(124, 58, 237, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="smartlinksPendientes">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Pendientes</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="smartlinksCompletados">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Completados</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Artista</th>
+                                <th>Canción</th>
+                                <th>Enlaces</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaSmartlinks">
+                            <tr><td colspan="6" style="text-align: center; padding: 2rem;">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Mastering -->
+            <div class="tab-content" id="tabMastering">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🎛️ Solicitudes de Mastering IA</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div style="background: rgba(236, 72, 153, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="masteringPendientes">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Pendientes</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="masteringCompletados">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Completados</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Artista</th>
+                                <th>Pista</th>
+                                <th>Intensidad</th>
+                                <th>Precio</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaMastering">
+                            <tr><td colspan="7" style="text-align: center; padding: 2rem;">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Portadas -->
+            <div class="tab-content" id="tabPortadas">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">🎨 Solicitudes de Portadas IA</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div style="background: rgba(6, 182, 212, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="portadasPendientes">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Pendientes</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 1rem; border-radius: 1rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="portadasCompletados">0</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Completados</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Artista</th>
+                                <th>Canción</th>
+                                <th>Estilo</th>
+                                <th>Descripción</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPortadas">
+                            <tr><td colspan="7" style="text-align: center; padding: 2rem;">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
     </div>
 
     <!-- Modal de Verificación -->
@@ -1275,6 +1382,12 @@
                 cargarSolicitudesDestacar();
             } else if (tabName === 'canjes') {
                 cargarCanjes();
+            } else if (tabName === 'smartlinks') {
+                cargarSmartlinks();
+            } else if (tabName === 'mastering') {
+                cargarMastering();
+            } else if (tabName === 'portadas') {
+                cargarPortadas();
             }
         }
 
@@ -3228,6 +3341,279 @@
                 
                 alert('✅ Canje marcado como completado');
                 cargarCanjes();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ========================================
+        // SMARTLINKS
+        // ========================================
+        async function cargarSmartlinks() {
+            try {
+                const { data: smartlinks, error } = await supabaseClient
+                    .from('smartlinks')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const tbody = document.getElementById('tablaSmartlinks');
+                const pendientes = smartlinks?.filter(s => s.estado === 'pendiente').length || 0;
+                const completados = smartlinks?.filter(s => s.estado === 'completado').length || 0;
+                
+                document.getElementById('smartlinksPendientes').textContent = pendientes;
+                document.getElementById('smartlinksCompletados').textContent = completados;
+                
+                if (!smartlinks || smartlinks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay solicitudes de SmartLinks</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = smartlinks.map(s => {
+                    const fecha = new Date(s.created_at).toLocaleDateString('es-ES');
+                    const enlaces = [
+                        s.spotify_url ? '🟢' : '',
+                        s.apple_url ? '🎵' : '',
+                        s.youtube_url ? '▶️' : '',
+                        s.deezer_url ? '🎶' : '',
+                        s.soundcloud_url ? '☁️' : ''
+                    ].filter(Boolean).join(' ');
+                    
+                    const estadoBadge = s.estado === 'pendiente' 
+                        ? '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>'
+                        : '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
+                    
+                    const acciones = s.estado === 'pendiente' 
+                        ? `<button onclick="completarSmartlink('${s.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅ Completar</button>`
+                        : `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Slug: ${s.slug || 'N/A'}</span>`;
+                    
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">${s.artista_nombre || 'Sin nombre'}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${s.artista_email}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">${s.nombre_cancion}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${s.nombre_artista}</div>
+                            </td>
+                            <td style="font-size: 1.2rem;">${enlaces}</td>
+                            <td>${estadoBadge}</td>
+                            <td>${fecha}</td>
+                            <td>${acciones}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        async function completarSmartlink(id) {
+            const slug = prompt('Introduce el SLUG del SmartLink creado:');
+            if (!slug) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('smartlinks')
+                    .update({ 
+                        estado: 'completado',
+                        slug: slug,
+                        completado_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ SmartLink marcado como completado');
+                cargarSmartlinks();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ========================================
+        // MASTERING
+        // ========================================
+        async function cargarMastering() {
+            try {
+                const { data: mastering, error } = await supabaseClient
+                    .from('solicitudes_mastering')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const tbody = document.getElementById('tablaMastering');
+                const pendientes = mastering?.filter(m => m.estado === 'pendiente').length || 0;
+                const completados = mastering?.filter(m => m.estado === 'completado').length || 0;
+                
+                document.getElementById('masteringPendientes').textContent = pendientes;
+                document.getElementById('masteringCompletados').textContent = completados;
+                
+                if (!mastering || mastering.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay solicitudes de Mastering</td></tr>';
+                    return;
+                }
+                
+                const intensidadNombres = {
+                    'light': '🔉 Ligero',
+                    'medium': '🔊 Medio',
+                    'heavy': '📢 Intenso'
+                };
+                
+                tbody.innerHTML = mastering.map(m => {
+                    const fecha = new Date(m.created_at).toLocaleDateString('es-ES');
+                    
+                    const estadoBadge = m.estado === 'pendiente' 
+                        ? '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>'
+                        : '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
+                    
+                    const acciones = m.estado === 'pendiente' 
+                        ? `<button onclick="completarMastering('${m.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅ Completar</button>`
+                        : `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">${new Date(m.completado_at).toLocaleDateString('es-ES')}</span>`;
+                    
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">${m.artista_nombre || 'Sin nombre'}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${m.artista_email}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">${m.nombre_pista}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${m.archivo_nombre || 'Sin archivo'}</div>
+                            </td>
+                            <td>${intensidadNombres[m.intensidad] || m.intensidad}</td>
+                            <td style="font-weight: 700; color: #10b981;">€${m.precio || '4.99'}</td>
+                            <td>${estadoBadge}</td>
+                            <td>${fecha}</td>
+                            <td>${acciones}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        async function completarMastering(id) {
+            const resultadoUrl = prompt('Introduce el link de descarga del archivo masterizado (WeTransfer, Drive, etc):');
+            if (!resultadoUrl) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('solicitudes_mastering')
+                    .update({ 
+                        estado: 'completado',
+                        resultado_url: resultadoUrl,
+                        completado_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ Mastering marcado como completado.\n\n📧 Recuerda enviar el email al artista con el link de descarga.');
+                cargarMastering();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ========================================
+        // PORTADAS IA
+        // ========================================
+        async function cargarPortadas() {
+            try {
+                const { data: portadas, error } = await supabaseClient
+                    .from('solicitudes_portadas')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const tbody = document.getElementById('tablaPortadas');
+                const pendientes = portadas?.filter(p => p.estado === 'pendiente').length || 0;
+                const completados = portadas?.filter(p => p.estado === 'completado').length || 0;
+                
+                document.getElementById('portadasPendientes').textContent = pendientes;
+                document.getElementById('portadasCompletados').textContent = completados;
+                
+                if (!portadas || portadas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">No hay solicitudes de Portadas</td></tr>';
+                    return;
+                }
+                
+                const estilosNombres = {
+                    'abstract': '🌈 Abstracto',
+                    'urban': '🏙 Urbano',
+                    'nature': '🌿 Naturaleza',
+                    'neon': '💫 Neón',
+                    'minimal': '⚪ Minimalista',
+                    'vintage': '📻 Vintage'
+                };
+                
+                tbody.innerHTML = portadas.map(p => {
+                    const fecha = new Date(p.created_at).toLocaleDateString('es-ES');
+                    
+                    const estadoBadge = p.estado === 'pendiente' 
+                        ? '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>'
+                        : '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
+                    
+                    const acciones = p.estado === 'pendiente' 
+                        ? `<button onclick="completarPortada('${p.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅ Completar</button>`
+                        : `<a href="${p.resultado_url || '#'}" target="_blank" style="color: #3b82f6;">Ver portada</a>`;
+                    
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">${p.artista_nombre || 'Sin nombre'}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${p.artista_email}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">${p.nombre_cancion}</div>
+                                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${p.nombre_artista}</div>
+                            </td>
+                            <td>${estilosNombres[p.estilo] || p.estilo}</td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.descripcion || ''}">${p.descripcion || '-'}</td>
+                            <td>${estadoBadge}</td>
+                            <td>${fecha}</td>
+                            <td>${acciones}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        async function completarPortada(id) {
+            const resultadoUrl = prompt('Introduce el link de la portada generada (Drive, Imgur, etc):');
+            if (!resultadoUrl) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('solicitudes_portadas')
+                    .update({ 
+                        estado: 'completado',
+                        resultado_url: resultadoUrl,
+                        completado_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ Portada marcada como completada.\n\n📧 Recuerda enviar el email al artista con la portada.');
+                cargarPortadas();
                 
             } catch (err) {
                 console.error('Error:', err);
