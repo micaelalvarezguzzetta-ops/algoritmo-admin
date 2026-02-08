@@ -1314,6 +1314,11 @@
                     const icon = user.tipo === 'artista' ? '🎵' : '🎧';
                     const fecha = new Date(user.created_at).toLocaleDateString('es-ES');
                     
+                    // Botón de ver playlists solo para curadores
+                    const btnPlaylists = user.tipo === 'curador' 
+                        ? `<button class="btn-action" style="background: #8b5cf6;" onclick="verPlaylistsCurador('${user.id}', '${user.nombre}')">📋 Playlists</button>`
+                        : '';
+                    
                     tbody.innerHTML += `
                         <tr>
                             <td>${user.nombre}</td>
@@ -1322,6 +1327,7 @@
                             <td style="color: rgba(255,255,255,0.7);">${fecha}</td>
                             <td>
                                 <button class="btn-action btn-view" onclick="verUsuario('${user.id}', '${user.email}')">👁️ Ver</button>
+                                ${btnPlaylists}
                                 <button class="btn-action btn-delete" onclick="eliminarUsuario('${user.id}', '${user.email}')">🗑️ Eliminar</button>
                             </td>
                         </tr>
@@ -2278,6 +2284,41 @@
             }
         }
 
+        // Ver playlists de un curador
+        async function verPlaylistsCurador(curadorId, curadorNombre) {
+            try {
+                const { data: playlists, error } = await supabaseClient
+                    .from('playlists')
+                    .select('*')
+                    .eq('curador_id', curadorId)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                if (!playlists || playlists.length === 0) {
+                    alert(`📋 PLAYLISTS DE ${curadorNombre.toUpperCase()}\n\nEste curador no tiene playlists registradas.`);
+                    return;
+                }
+                
+                let info = `📋 PLAYLISTS DE ${curadorNombre.toUpperCase()}\n`;
+                info += `Total: ${playlists.length} playlists\n`;
+                info += `${'─'.repeat(40)}\n\n`;
+                
+                playlists.forEach((p, i) => {
+                    const estado = p.estado === 'aprobada' ? '✅' : p.estado === 'pendiente' ? '⏳' : '❌';
+                    const destacada = p.destacada ? '⭐' : '';
+                    info += `${i+1}. ${estado} ${p.nombre} ${destacada}\n`;
+                    info += `   👥 ${p.seguidores || p.followers || 0} seguidores\n`;
+                    info += `   📅 ${new Date(p.created_at).toLocaleDateString('es-ES')}\n\n`;
+                });
+                
+                alert(info);
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error al cargar playlists del curador');
+            }
+        }
+
         // Eliminar usuario
         async function eliminarUsuario(userId, email) {
             if (!confirm(`¿Eliminar usuario ${email}?\n\n⚠️ Esta acción no se puede deshacer.`)) {
@@ -3066,6 +3107,25 @@
             tbody.innerHTML = canjes.map(c => {
                 const fecha = new Date(c.created_at).toLocaleDateString('es-ES');
                 const servicioNombre = serviciosNombres[c.tipo] || c.tipo;
+                const datos = c.datos_extra || {};
+                
+                // Formatear datos extra según tipo de servicio
+                let detallesExtra = '';
+                if (c.tipo === 'promo_tiktok' && datos.link_video) {
+                    detallesExtra = `<div style="font-size: 0.75rem; color: #ec4899; margin-top: 0.25rem;">📹 <a href="${datos.link_video}" target="_blank" style="color: #ec4899;">Ver Video</a></div>`;
+                    if (datos.instrucciones) detallesExtra += `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">📝 ${datos.instrucciones}</div>`;
+                }
+                if (c.tipo === 'mastering_ia' && datos.link_cancion) {
+                    detallesExtra = `<div style="font-size: 0.75rem; color: #3b82f6; margin-top: 0.25rem;">🎵 ${datos.nombre_cancion || 'Canción'}</div>`;
+                    detallesExtra += `<div style="font-size: 0.7rem;"><a href="${datos.link_cancion}" target="_blank" style="color: #3b82f6;">⬇️ Descargar</a></div>`;
+                }
+                if (c.tipo === 'portadas_ia' && datos.descripcion) {
+                    detallesExtra = `<div style="font-size: 0.75rem; color: #f97316; margin-top: 0.25rem;">🎨 ${datos.nombre_artista || ''} - ${datos.nombre_cancion || ''}</div>`;
+                    detallesExtra += `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">📝 ${datos.descripcion.substring(0, 50)}...</div>`;
+                }
+                if (c.tipo === 'playlist_top' && datos.playlist_nombre) {
+                    detallesExtra = `<div style="font-size: 0.75rem; color: #8b5cf6; margin-top: 0.25rem;">📋 ${datos.playlist_nombre}</div>`;
+                }
                 
                 let estadoBadge = '';
                 let acciones = '';
@@ -3073,12 +3133,13 @@
                 if (c.estado === 'pendiente') {
                     estadoBadge = '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>';
                     acciones = `
-                        <button onclick="completarCanje('${c.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅ Completar</button>
+                        <button onclick="verDetallesCanje('${c.id}')" style="background: #6b7280; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.25rem;">👁️</button>
+                        <button onclick="completarCanje('${c.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅</button>
                     `;
                 } else if (c.estado === 'completado') {
                     estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
                     const fechaCompletado = c.completado_at ? new Date(c.completado_at).toLocaleDateString('es-ES') : '-';
-                    acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Completado: ${fechaCompletado}</span>`;
+                    acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">${fechaCompletado}</span>`;
                 }
                 
                 return `
@@ -3089,14 +3150,48 @@
                         </td>
                         <td>
                             <div style="font-weight: 600;">${servicioNombre}</div>
+                            ${detallesExtra}
                         </td>
-                        <td style="font-weight: 700; color: #f472b6;">${c.puntos} puntos</td>
+                        <td style="font-weight: 700; color: #f472b6;">${c.puntos} pts</td>
                         <td>${estadoBadge}</td>
                         <td>${fecha}</td>
                         <td>${acciones}</td>
                     </tr>
                 `;
             }).join('');
+        }
+        
+        function verDetallesCanje(id) {
+            const canje = todosCanjes.find(c => c.id === id);
+            if (!canje) return;
+            
+            const datos = canje.datos_extra || {};
+            let detalles = `📦 DETALLES DEL CANJE\n\n`;
+            detalles += `👤 Curador: ${canje.curador_nombre}\n`;
+            detalles += `📧 Email: ${canje.curador_email}\n`;
+            detalles += `🎁 Servicio: ${serviciosNombres[canje.tipo]}\n`;
+            detalles += `⭐ Puntos: ${canje.puntos}\n`;
+            detalles += `📅 Fecha: ${new Date(canje.created_at).toLocaleString('es-ES')}\n\n`;
+            
+            if (canje.tipo === 'promo_tiktok') {
+                detalles += `📹 LINK VIDEO:\n${datos.link_video || 'No proporcionado'}\n\n`;
+                detalles += `📝 Instrucciones:\n${datos.instrucciones || 'Ninguna'}`;
+            }
+            if (canje.tipo === 'mastering_ia') {
+                detalles += `🎵 Canción: ${datos.nombre_cancion || 'Sin nombre'}\n`;
+                detalles += `⬇️ LINK DESCARGA:\n${datos.link_cancion || 'No proporcionado'}`;
+            }
+            if (canje.tipo === 'portadas_ia') {
+                detalles += `🎤 Artista: ${datos.nombre_artista || 'No especificado'}\n`;
+                detalles += `🎵 Canción: ${datos.nombre_cancion || 'No especificado'}\n`;
+                detalles += `📝 DESCRIPCIÓN:\n${datos.descripcion || 'No proporcionada'}`;
+            }
+            if (canje.tipo === 'playlist_top') {
+                detalles += `📋 Playlist: ${datos.playlist_nombre || 'No especificada'}\n`;
+                detalles += `🔗 ID: ${datos.playlist_id || 'No disponible'}`;
+            }
+            
+            alert(detalles);
         }
         
         function filtrarCanjes(estado) {
