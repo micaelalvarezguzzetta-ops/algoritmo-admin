@@ -1115,7 +1115,8 @@
                 <div class="filters">
                     <button class="filter-btn active" onclick="filtrarCanjes('todos')">📊 Todos</button>
                     <button class="filter-btn" onclick="filtrarCanjes('pendiente')">⏳ Pendientes</button>
-                    <button class="filter-btn" onclick="filtrarCanjes('completado')">✅ Completados</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('aprobado')">✅ Aprobados</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('rechazado')">❌ Rechazados</button>
                 </div>
                 
                 <div style="overflow-x: auto;">
@@ -3107,30 +3108,85 @@
             'envio_playlist': '🎵 Envío a Playlists',
             'promo_tiktok': '📱 Promo TikTok',
             'playlist_top': '🏆 Playlist TOP',
+            'top_playlist': '🏆 Playlist TOP (Puntos)',
+            'redes_sociales': '📱 Promo Redes (Puntos)',
             'mastering_ia': '🎛️ Mastering IA'
         };
         
         async function cargarCanjes() {
             try {
-                const { data, error } = await supabaseClient
+                // Cargar de tabla canjes_servicios (pagos con dinero)
+                const { data: canjesServicios, error: errorServicios } = await supabaseClient
                     .from('canjes_servicios')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
-                if (error) {
-                    console.error('Error cargando canjes:', error);
-                    document.getElementById('tablaCanjes').innerHTML = `
-                        <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
-                            Error al cargar o tabla no existe
-                        </td></tr>`;
-                    return;
+                // Cargar de tabla canjes (pagos con puntos)
+                const { data: canjesPuntos, error: errorPuntos } = await supabaseClient
+                    .from('canjes')
+                    .select(`
+                        *,
+                        usuarios:curador_id (nombre, email),
+                        playlists:playlist_id (nombre, followers)
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                let todosLosCanjes = [];
+                
+                // Procesar canjes de servicios
+                if (!errorServicios && canjesServicios) {
+                    canjesServicios.forEach(c => {
+                        todosLosCanjes.push({
+                            ...c,
+                            fuente: 'servicios',
+                            puntos: c.puntos || 0
+                        });
+                    });
                 }
                 
-                todosCanjes = data || [];
+                // Procesar canjes con puntos
+                if (!errorPuntos && canjesPuntos) {
+                    canjesPuntos.forEach(c => {
+                        // Extraer nombre de playlist de notas o del join
+                        let playlistNombre = '';
+                        if (c.playlists?.nombre) {
+                            playlistNombre = c.playlists.nombre;
+                        } else if (c.notas) {
+                            const match = c.notas.match(/Playlist: ([^|]+)/);
+                            if (match) playlistNombre = match[1].trim();
+                        }
+                        
+                        todosLosCanjes.push({
+                            id: c.id,
+                            curador_id: c.curador_id,
+                            curador_nombre: c.usuarios?.nombre || 'Sin nombre',
+                            curador_email: c.usuarios?.email || '',
+                            tipo: c.tipo,
+                            puntos: c.puntos_gastados || 0,
+                            estado: c.estado,
+                            created_at: c.created_at,
+                            completado_at: c.completado_at,
+                            fecha_inicio: c.fecha_inicio,
+                            fecha_fin: c.fecha_fin,
+                            datos_extra: {
+                                playlist_nombre: playlistNombre,
+                                playlist_id: c.playlist_id,
+                                seguidores: c.playlists?.followers || 0
+                            },
+                            notas: c.notas,
+                            fuente: 'puntos'
+                        });
+                    });
+                }
+                
+                // Ordenar por fecha más reciente
+                todosLosCanjes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                todosCanjes = todosLosCanjes;
                 
                 // Actualizar contadores
                 const pendientes = todosCanjes.filter(c => c.estado === 'pendiente');
-                const completados = todosCanjes.filter(c => c.estado === 'completado');
+                const completados = todosCanjes.filter(c => c.estado === 'completado' || c.estado === 'aprobado');
                 const totalPuntos = todosCanjes.reduce((sum, c) => sum + (c.puntos || 0), 0);
                 
                 document.getElementById('canjesPendientes').textContent = pendientes.length;
@@ -3142,6 +3198,10 @@
                 
             } catch (err) {
                 console.error('Error:', err);
+                document.getElementById('tablaCanjes').innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                        Error al cargar canjes
+                    </td></tr>`;
             }
         }
         
@@ -3171,9 +3231,25 @@
                     detallesExtra = `<div style="font-size: 0.75rem; color: #3b82f6; margin-top: 0.25rem;">🎵 ${datos.nombre_cancion || 'Canción'}</div>`;
                     detallesExtra += `<div style="font-size: 0.7rem;"><a href="${datos.link_cancion}" target="_blank" style="color: #3b82f6;">⬇️ Descargar</a></div>`;
                 }
-                if (c.tipo === 'playlist_top' && datos.playlist_nombre) {
+                if ((c.tipo === 'playlist_top' || c.tipo === 'top_playlist') && datos.playlist_nombre) {
                     detallesExtra = `<div style="font-size: 0.75rem; color: #8b5cf6; margin-top: 0.25rem;">📋 ${datos.playlist_nombre}</div>`;
+                    if (datos.seguidores) {
+                        detallesExtra += `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">👥 ${datos.seguidores.toLocaleString()} seguidores</div>`;
+                    }
                 }
+                if (c.tipo === 'redes_sociales') {
+                    detallesExtra = `<div style="font-size: 0.75rem; color: #ec4899; margin-top: 0.25rem;">📱 Instagram, TikTok, Facebook</div>`;
+                }
+                
+                // Mostrar notas si existen y no se han procesado arriba
+                if (c.notas && !detallesExtra) {
+                    detallesExtra = `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 0.25rem;">📝 ${c.notas.substring(0, 50)}${c.notas.length > 50 ? '...' : ''}</div>`;
+                }
+                
+                // Badge de fuente (puntos o pago)
+                const fuenteBadge = c.fuente === 'puntos' 
+                    ? '<span style="background: rgba(251,191,36,0.2); color: #fbbf24; padding: 0.15rem 0.5rem; border-radius: 0.25rem; font-size: 0.65rem; margin-left: 0.5rem;">⭐ PUNTOS</span>'
+                    : '<span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 0.15rem 0.5rem; border-radius: 0.25rem; font-size: 0.65rem; margin-left: 0.5rem;">💰 PAGO</span>';
                 
                 let estadoBadge = '';
                 let acciones = '';
@@ -3181,13 +3257,17 @@
                 if (c.estado === 'pendiente') {
                     estadoBadge = '<span style="background: #f59e0b; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">⏳ Pendiente</span>';
                     acciones = `
-                        <button onclick="verDetallesCanje('${c.id}')" style="background: #6b7280; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.25rem;">👁️</button>
-                        <button onclick="completarCanje('${c.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;">✅</button>
+                        <button onclick="verDetallesCanje('${c.id}', '${c.fuente || 'servicios'}')" style="background: #6b7280; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.25rem;">👁️</button>
+                        <button onclick="aprobarCanje('${c.id}', '${c.fuente || 'servicios'}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.25rem;">✅</button>
+                        <button onclick="rechazarCanje('${c.id}', '${c.fuente || 'servicios'}')" style="background: #ef4444; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer;">❌</button>
                     `;
-                } else if (c.estado === 'completado') {
-                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
+                } else if (c.estado === 'completado' || c.estado === 'aprobado') {
+                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Aprobado</span>';
                     const fechaCompletado = c.completado_at ? new Date(c.completado_at).toLocaleDateString('es-ES') : '-';
                     acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">${fechaCompletado}</span>`;
+                } else if (c.estado === 'rechazado') {
+                    estadoBadge = '<span style="background: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">❌ Rechazado</span>';
+                    acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">-</span>`;
                 }
                 
                 return `
@@ -3197,7 +3277,7 @@
                             <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">${c.curador_email || ''}</div>
                         </td>
                         <td>
-                            <div style="font-weight: 600;">${servicioNombre}</div>
+                            <div style="font-weight: 600;">${servicioNombre}${fuenteBadge}</div>
                             ${detallesExtra}
                         </td>
                         <td style="font-weight: 700; color: #f472b6;">${c.puntos} pts</td>
@@ -3209,7 +3289,7 @@
             }).join('');
         }
         
-        function verDetallesCanje(id) {
+        function verDetallesCanje(id, fuente) {
             const canje = todosCanjes.find(c => c.id === id);
             if (!canje) return;
             
@@ -3217,9 +3297,19 @@
             let detalles = `📦 DETALLES DEL CANJE\n\n`;
             detalles += `👤 Curador: ${canje.curador_nombre}\n`;
             detalles += `📧 Email: ${canje.curador_email}\n`;
-            detalles += `🎁 Servicio: ${serviciosNombres[canje.tipo]}\n`;
+            detalles += `🎁 Servicio: ${serviciosNombres[canje.tipo] || canje.tipo}\n`;
             detalles += `⭐ Puntos: ${canje.puntos}\n`;
-            detalles += `📅 Fecha: ${new Date(canje.created_at).toLocaleString('es-ES')}\n\n`;
+            detalles += `💳 Fuente: ${fuente === 'puntos' ? 'Canje con puntos' : 'Pago con dinero'}\n`;
+            detalles += `📅 Fecha: ${new Date(canje.created_at).toLocaleString('es-ES')}\n`;
+            
+            if (canje.fecha_inicio) {
+                detalles += `📆 Fecha inicio: ${canje.fecha_inicio}\n`;
+            }
+            if (canje.fecha_fin) {
+                detalles += `📆 Fecha fin: ${canje.fecha_fin}\n`;
+            }
+            
+            detalles += `\n`;
             
             if (canje.tipo === 'promo_tiktok') {
                 detalles += `📹 LINK VIDEO:\n${datos.link_video || 'No proporcionado'}\n\n`;
@@ -3229,9 +3319,17 @@
                 detalles += `🎵 Canción: ${datos.nombre_cancion || 'Sin nombre'}\n`;
                 detalles += `⬇️ LINK DESCARGA:\n${datos.link_cancion || 'No proporcionado'}`;
             }
-            if (canje.tipo === 'playlist_top') {
+            if (canje.tipo === 'playlist_top' || canje.tipo === 'top_playlist') {
                 detalles += `📋 Playlist: ${datos.playlist_nombre || 'No especificada'}\n`;
-                detalles += `🔗 ID: ${datos.playlist_id || 'No disponible'}`;
+                detalles += `👥 Seguidores: ${datos.seguidores || 'No disponible'}\n`;
+                detalles += `🔗 Playlist ID: ${datos.playlist_id || 'No disponible'}`;
+            }
+            if (canje.tipo === 'redes_sociales') {
+                detalles += `📱 Promoción en Instagram, TikTok y Facebook`;
+            }
+            
+            if (canje.notas) {
+                detalles += `\n\n📝 NOTAS:\n${canje.notas}`;
             }
             
             alert(detalles);
@@ -3244,9 +3342,111 @@
             
             if (estado === 'todos') {
                 renderizarCanjes(todosCanjes);
+            } else if (estado === 'aprobado') {
+                // Incluir tanto 'aprobado' como 'completado'
+                const filtrados = todosCanjes.filter(c => c.estado === 'aprobado' || c.estado === 'completado');
+                renderizarCanjes(filtrados);
             } else {
                 const filtrados = todosCanjes.filter(c => c.estado === estado);
                 renderizarCanjes(filtrados);
+            }
+        }
+        
+        async function aprobarCanje(id, fuente) {
+            const canje = todosCanjes.find(c => c.id === id);
+            if (!canje) return;
+            
+            const datos = canje.datos_extra || {};
+            let mensaje = `✅ ¿APROBAR este canje?\n\n`;
+            mensaje += `👤 Curador: ${canje.curador_nombre}\n`;
+            mensaje += `🎁 Servicio: ${serviciosNombres[canje.tipo] || canje.tipo}\n`;
+            if (datos.playlist_nombre) {
+                mensaje += `📋 Playlist: ${datos.playlist_nombre}\n`;
+            }
+            mensaje += `⭐ Puntos: ${canje.puntos}`;
+            
+            if (!confirm(mensaje)) {
+                return;
+            }
+            
+            try {
+                const tabla = fuente === 'puntos' ? 'canjes' : 'canjes_servicios';
+                
+                const { error } = await supabaseClient
+                    .from(tabla)
+                    .update({ 
+                        estado: fuente === 'puntos' ? 'aprobado' : 'completado',
+                        completado_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                // Si es un canje de playlist TOP, marcar la playlist como destacada
+                if ((canje.tipo === 'top_playlist' || canje.tipo === 'playlist_top') && datos.playlist_id) {
+                    await supabaseClient
+                        .from('playlists')
+                        .update({ destacada: true })
+                        .eq('id', datos.playlist_id);
+                }
+                
+                alert('✅ Canje APROBADO correctamente');
+                cargarCanjes();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
+            }
+        }
+        
+        async function rechazarCanje(id, fuente) {
+            const canje = todosCanjes.find(c => c.id === id);
+            if (!canje) return;
+            
+            const motivo = prompt('📝 Motivo del rechazo (opcional):') || 'Sin motivo especificado';
+            
+            if (!confirm(`❌ ¿RECHAZAR este canje?\n\nSe devolverán ${canje.puntos} puntos al curador.`)) {
+                return;
+            }
+            
+            try {
+                const tabla = fuente === 'puntos' ? 'canjes' : 'canjes_servicios';
+                
+                // Actualizar estado del canje
+                const { error } = await supabaseClient
+                    .from(tabla)
+                    .update({ 
+                        estado: 'rechazado',
+                        notas: (canje.notas || '') + ' | RECHAZADO: ' + motivo
+                    })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                // Si es canje con puntos, devolver los puntos al curador
+                if (fuente === 'puntos' && canje.curador_id) {
+                    // Obtener puntos actuales
+                    const { data: usuario } = await supabaseClient
+                        .from('usuarios')
+                        .select('puntos')
+                        .eq('id', canje.curador_id)
+                        .single();
+                    
+                    if (usuario) {
+                        const nuevosPuntos = (usuario.puntos || 0) + canje.puntos;
+                        await supabaseClient
+                            .from('usuarios')
+                            .update({ puntos: nuevosPuntos })
+                            .eq('id', canje.curador_id);
+                    }
+                }
+                
+                alert(`❌ Canje RECHAZADO.\n\n${fuente === 'puntos' ? `Se devolvieron ${canje.puntos} puntos al curador.` : ''}`);
+                cargarCanjes();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                alert('❌ Error: ' + err.message);
             }
         }
         
