@@ -3359,6 +3359,9 @@
             if (datos.playlist_nombre) {
                 mensaje += `📋 Playlist: ${datos.playlist_nombre}\n`;
             }
+            if (datos.playlist_id) {
+                mensaje += `🔗 Playlist ID: ${datos.playlist_id}\n`;
+            }
             mensaje += `⭐ Puntos: ${canje.puntos}`;
             
             if (!confirm(mensaje)) {
@@ -3381,10 +3384,23 @@
                 
                 // Si es un canje de playlist TOP, marcar la playlist como destacada
                 if ((canje.tipo === 'top_playlist' || canje.tipo === 'playlist_top') && datos.playlist_id) {
-                    await supabaseClient
+                    console.log('🏆 Marcando playlist como destacada:', datos.playlist_id);
+                    
+                    const { data: updateData, error: errorDestacada } = await supabaseClient
                         .from('playlists')
                         .update({ destacada: true })
-                        .eq('id', datos.playlist_id);
+                        .eq('id', datos.playlist_id)
+                        .select();
+                    
+                    if (errorDestacada) {
+                        console.error('❌ Error marcando destacada:', errorDestacada);
+                        alert('⚠️ Canje aprobado pero hubo un error al destacar la playlist: ' + errorDestacada.message);
+                    } else {
+                        console.log('✅ Playlist marcada como destacada:', updateData);
+                    }
+                } else if ((canje.tipo === 'top_playlist' || canje.tipo === 'playlist_top') && !datos.playlist_id) {
+                    console.warn('⚠️ No se encontró playlist_id en el canje');
+                    alert('⚠️ Canje aprobado pero no se pudo destacar la playlist (falta playlist_id)');
                 }
                 
                 // Enviar notificación al curador
