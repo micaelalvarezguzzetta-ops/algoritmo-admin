@@ -1115,8 +1115,8 @@
                 <div class="filters">
                     <button class="filter-btn active" onclick="filtrarCanjes('todos')">📊 Todos</button>
                     <button class="filter-btn" onclick="filtrarCanjes('pendiente')">⏳ Pendientes</button>
-                    <button class="filter-btn" onclick="filtrarCanjes('aprobado')">✅ Aprobados</button>
-                    <button class="filter-btn" onclick="filtrarCanjes('rechazado')">❌ Rechazados</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('completado')">✅ Completados</button>
+                    <button class="filter-btn" onclick="filtrarCanjes('cancelado')">❌ Cancelados</button>
                 </div>
                 
                 <div style="overflow-x: auto;">
@@ -3261,12 +3261,12 @@
                         <button onclick="aprobarCanje('${c.id}', '${c.fuente || 'servicios'}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; margin-right: 0.25rem;">✅</button>
                         <button onclick="rechazarCanje('${c.id}', '${c.fuente || 'servicios'}')" style="background: #ef4444; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer;">❌</button>
                     `;
-                } else if (c.estado === 'completado' || c.estado === 'aprobado') {
-                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Aprobado</span>';
+                } else if (c.estado === 'completado') {
+                    estadoBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">✅ Completado</span>';
                     const fechaCompletado = c.completado_at ? new Date(c.completado_at).toLocaleDateString('es-ES') : '-';
                     acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">${fechaCompletado}</span>`;
-                } else if (c.estado === 'rechazado') {
-                    estadoBadge = '<span style="background: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">❌ Rechazado</span>';
+                } else if (c.estado === 'cancelado') {
+                    estadoBadge = '<span style="background: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.8rem;">❌ Cancelado</span>';
                     acciones = `<span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">-</span>`;
                 }
                 
@@ -3342,10 +3342,6 @@
             
             if (estado === 'todos') {
                 renderizarCanjes(todosCanjes);
-            } else if (estado === 'aprobado') {
-                // Incluir tanto 'aprobado' como 'completado'
-                const filtrados = todosCanjes.filter(c => c.estado === 'aprobado' || c.estado === 'completado');
-                renderizarCanjes(filtrados);
             } else {
                 const filtrados = todosCanjes.filter(c => c.estado === estado);
                 renderizarCanjes(filtrados);
@@ -3372,10 +3368,11 @@
             try {
                 const tabla = fuente === 'puntos' ? 'canjes' : 'canjes_servicios';
                 
+                // Usar 'completado' para ambas tablas (la tabla canjes tiene un CHECK constraint)
                 const { error } = await supabaseClient
                     .from(tabla)
                     .update({ 
-                        estado: fuente === 'puntos' ? 'aprobado' : 'completado',
+                        estado: 'completado',
                         completado_at: new Date().toISOString()
                     })
                     .eq('id', id);
@@ -3412,11 +3409,11 @@
             try {
                 const tabla = fuente === 'puntos' ? 'canjes' : 'canjes_servicios';
                 
-                // Actualizar estado del canje
+                // Usar 'cancelado' en lugar de 'rechazado' para cumplir con el CHECK constraint
                 const { error } = await supabaseClient
                     .from(tabla)
                     .update({ 
-                        estado: 'rechazado',
+                        estado: 'cancelado',
                         notas: (canje.notas || '') + ' | RECHAZADO: ' + motivo
                     })
                     .eq('id', id);
