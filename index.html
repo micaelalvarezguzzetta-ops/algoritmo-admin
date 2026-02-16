@@ -3387,7 +3387,29 @@
                         .eq('id', datos.playlist_id);
                 }
                 
-                alert('✅ Canje APROBADO correctamente');
+                // Enviar notificación al curador
+                const tipoServicio = serviciosNombres[canje.tipo] || canje.tipo;
+                let mensajeNotif = '';
+                
+                if (canje.tipo === 'top_playlist' || canje.tipo === 'playlist_top') {
+                    mensajeNotif = `Tu playlist "${datos.playlist_nombre || 'seleccionada'}" ya está destacada en el TOP. ¡Duración: 1 semana!`;
+                } else if (canje.tipo === 'redes_sociales') {
+                    mensajeNotif = `Tu promoción en redes sociales ha sido aprobada. Pronto verás tu playlist en nuestras redes.`;
+                } else {
+                    mensajeNotif = `Tu canje de ${tipoServicio} ha sido procesado correctamente.`;
+                }
+                
+                await supabaseClient
+                    .from('notificaciones')
+                    .insert({
+                        usuario_id: canje.curador_id,
+                        tipo: 'canje_aprobado',
+                        titulo: '✅ Canje Aprobado',
+                        mensaje: mensajeNotif,
+                        leida: false
+                    });
+                
+                alert('✅ Canje APROBADO correctamente\n\nSe ha notificado al curador.');
                 cargarCanjes();
                 
             } catch (err) {
@@ -3438,7 +3460,30 @@
                     }
                 }
                 
-                alert(`❌ Canje RECHAZADO.\n\n${fuente === 'puntos' ? `Se devolvieron ${canje.puntos} puntos al curador.` : ''}`);
+                // Enviar notificación al curador
+                const tipoServicio = serviciosNombres[canje.tipo] || canje.tipo;
+                const datos = canje.datos_extra || {};
+                let mensajeNotif = '';
+                
+                if (canje.tipo === 'top_playlist' || canje.tipo === 'playlist_top') {
+                    mensajeNotif = `Tu solicitud para destacar "${datos.playlist_nombre || 'tu playlist'}" ha sido rechazada. Motivo: ${motivo}. Se te han devuelto ${canje.puntos} puntos.`;
+                } else if (canje.tipo === 'redes_sociales') {
+                    mensajeNotif = `Tu solicitud de promoción en redes ha sido rechazada. Motivo: ${motivo}. Se te han devuelto ${canje.puntos} puntos.`;
+                } else {
+                    mensajeNotif = `Tu canje de ${tipoServicio} ha sido rechazado. Motivo: ${motivo}. ${fuente === 'puntos' ? `Se te han devuelto ${canje.puntos} puntos.` : ''}`;
+                }
+                
+                await supabaseClient
+                    .from('notificaciones')
+                    .insert({
+                        usuario_id: canje.curador_id,
+                        tipo: 'canje_rechazado',
+                        titulo: '❌ Canje Rechazado',
+                        mensaje: mensajeNotif,
+                        leida: false
+                    });
+                
+                alert(`❌ Canje RECHAZADO.\n\n${fuente === 'puntos' ? `Se devolvieron ${canje.puntos} puntos al curador.` : ''}\n\nSe ha notificado al curador.`);
                 cargarCanjes();
                 
             } catch (err) {
