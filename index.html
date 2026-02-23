@@ -683,6 +683,7 @@
             <div class="tabs">
                 <button class="tab-btn active" onclick="changeTab('usuarios')">👥 Usuarios</button>
                 <button class="tab-btn" onclick="changeTab('aprobarPlaylists')">📋 Aprobar Playlists</button>
+                <button class="tab-btn" onclick="changeTab('comprasCreditos')">💳 Compras</button>
                 <button class="tab-btn" onclick="changeTab('transacciones')">💰 Transacciones</button>
                 <button class="tab-btn" onclick="changeTab('envios')">📨 Envíos</button>
                 <button class="tab-btn" onclick="changeTab('playlists')">🎵 Playlists</button>
@@ -738,6 +739,64 @@
                     <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.5);">
                         ⏳ Cargando playlists pendientes...
                     </div>
+                </div>
+            </div>
+
+            <!-- Tab: Compras de Créditos -->
+            <div class="tab-content" id="tabComprasCreditos">
+                <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">💳 Compras de Créditos</h2>
+                
+                <!-- Resumen -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="totalComprasHoy">€0</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">Hoy</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #7c3aed, #6366f1); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="totalComprasMes">€0</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">Este mes</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="totalComisionesAfiliados">€0</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">Comisiones afiliados</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #ec4899, #be185d); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 900;" id="totalComprasTotal">€0</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">Total histórico</div>
+                    </div>
+                </div>
+                
+                <!-- Filtros -->
+                <div class="filters" style="margin-bottom: 1.5rem;">
+                    <button class="filter-btn active" onclick="filtrarCompras('todos')">📊 Todos</button>
+                    <button class="filter-btn" onclick="filtrarCompras('completado')">✅ Completados</button>
+                    <button class="filter-btn" onclick="filtrarCompras('pendiente_usuario')">⚠️ Sin usuario</button>
+                    <button class="filter-btn" onclick="filtrarCompras('con_afiliado')">🤝 Con afiliado</button>
+                </div>
+                
+                <!-- Tabla de compras -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 1rem; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: rgba(0,0,0,0.3);">
+                                <th style="padding: 1rem; text-align: left; font-weight: 700;">Fecha</th>
+                                <th style="padding: 1rem; text-align: left; font-weight: 700;">Usuario</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Paquete</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Monto</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Créditos</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Afiliado</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Comisión</th>
+                                <th style="padding: 1rem; text-align: center; font-weight: 700;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaComprasCreditos">
+                            <tr>
+                                <td colspan="8" style="padding: 3rem; text-align: center; color: rgba(255,255,255,0.5);">
+                                    ⏳ Cargando compras...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1309,6 +1368,8 @@
             // Cargar datos según la tab
             if (tabName === 'aprobarPlaylists') {
                 cargarPlaylistsPendientes();
+            } else if (tabName === 'comprasCreditos') {
+                cargarComprasCreditos();
             } else if (tabName === 'transacciones') {
                 cargarTransacciones();
             } else if (tabName === 'playlists') {
@@ -1619,6 +1680,161 @@
                 console.error('Error:', err);
                 alert('❌ Error al eliminar playlist');
             }
+        }
+
+        // ========================================
+        // COMPRAS DE CRÉDITOS
+        // ========================================
+        let todasComprasCreditos = [];
+        
+        async function cargarComprasCreditos() {
+            try {
+                console.log('🔄 Cargando compras de créditos...');
+                
+                const { data: compras, error } = await supabaseClient
+                    .from('compras_creditos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error:', error);
+                    // Si la tabla no existe, mostrar mensaje
+                    if (error.code === '42P01') {
+                        document.getElementById('tablaComprasCreditos').innerHTML = `
+                            <tr><td colspan="8" style="padding: 2rem; text-align: center; color: #f59e0b;">
+                                ⚠️ La tabla compras_creditos no existe.<br>
+                                Ejecuta el SQL de migración en Supabase.
+                            </td></tr>`;
+                        return;
+                    }
+                    throw error;
+                }
+                
+                todasComprasCreditos = compras || [];
+                console.log('✅ Compras cargadas:', todasComprasCreditos.length);
+                
+                // Obtener nombres de usuarios
+                const usuarioIds = [...new Set(compras?.filter(c => c.usuario_id).map(c => c.usuario_id) || [])];
+                let usuariosMap = {};
+                
+                if (usuarioIds.length > 0) {
+                    const { data: usuarios } = await supabaseClient
+                        .from('usuarios')
+                        .select('id, nombre, email')
+                        .in('id', usuarioIds);
+                    
+                    if (usuarios) {
+                        usuarios.forEach(u => {
+                            usuariosMap[u.id] = u;
+                        });
+                    }
+                }
+                
+                // Calcular totales
+                const hoy = new Date().toISOString().split('T')[0];
+                const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+                
+                const comprasHoy = compras?.filter(c => c.created_at?.startsWith(hoy) && c.estado === 'completado') || [];
+                const comprasMes = compras?.filter(c => c.created_at >= inicioMes && c.estado === 'completado') || [];
+                const comprasCompletadas = compras?.filter(c => c.estado === 'completado') || [];
+                
+                const totalHoy = comprasHoy.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
+                const totalMes = comprasMes.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
+                const totalComisiones = comprasCompletadas.reduce((sum, c) => sum + (parseFloat(c.comision_afiliado) || 0), 0);
+                const totalHistorico = comprasCompletadas.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
+                
+                document.getElementById('totalComprasHoy').textContent = '€' + totalHoy.toFixed(2);
+                document.getElementById('totalComprasMes').textContent = '€' + totalMes.toFixed(2);
+                document.getElementById('totalComisionesAfiliados').textContent = '€' + totalComisiones.toFixed(2);
+                document.getElementById('totalComprasTotal').textContent = '€' + totalHistorico.toFixed(2);
+                
+                // Renderizar tabla
+                renderizarTablaCompras(compras || [], usuariosMap);
+                
+            } catch (err) {
+                console.error('❌ Error cargando compras:', err);
+                document.getElementById('tablaComprasCreditos').innerHTML = `
+                    <tr><td colspan="8" style="padding: 2rem; text-align: center; color: #ef4444;">
+                        ❌ Error al cargar compras: ${err.message}
+                    </td></tr>`;
+            }
+        }
+        
+        function renderizarTablaCompras(compras, usuariosMap) {
+            const tbody = document.getElementById('tablaComprasCreditos');
+            
+            if (!compras || compras.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" style="padding: 3rem; text-align: center; color: rgba(255,255,255,0.5);">
+                        📭 No hay compras registradas aún
+                    </td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = compras.map(compra => {
+                const fecha = new Date(compra.created_at).toLocaleString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const usuario = usuariosMap[compra.usuario_id];
+                const nombreUsuario = usuario ? usuario.nombre : (compra.notas?.includes('Email no encontrado') ? '⚠️ ' + compra.notas : 'Desconocido');
+                const emailUsuario = usuario ? usuario.email : '-';
+                
+                const estadoBadge = compra.estado === 'completado' 
+                    ? '<span style="background: #10b981; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.75rem;">✅</span>'
+                    : '<span style="background: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.75rem;">⚠️</span>';
+                
+                const tipoLabel = {
+                    'pack_10': '📦 Pack €10',
+                    'pack_25': '🎁 Pack €25',
+                    'pack_50': '💎 Pack €50',
+                    'credito_standard': '🎵 Standard',
+                    'credito_premium': '⭐ Premium'
+                }[compra.tipo_paquete] || compra.tipo_paquete || '-';
+                
+                return `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 1rem; font-size: 0.9rem;">${fecha}</td>
+                        <td style="padding: 1rem;">
+                            <div style="font-weight: 600;">${nombreUsuario}</div>
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">${emailUsuario}</div>
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">${tipoLabel}</td>
+                        <td style="padding: 1rem; text-align: center; font-weight: 700; color: #10b981;">€${parseFloat(compra.monto).toFixed(2)}</td>
+                        <td style="padding: 1rem; text-align: center; font-weight: 600;">${compra.creditos_comprados}</td>
+                        <td style="padding: 1rem; text-align: center; font-size: 0.85rem;">${compra.codigo_afiliado_usado || '-'}</td>
+                        <td style="padding: 1rem; text-align: center; color: #f59e0b; font-weight: 600;">
+                            ${compra.comision_afiliado ? '€' + parseFloat(compra.comision_afiliado).toFixed(2) : '-'}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">${estadoBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function filtrarCompras(filtro) {
+            // Actualizar botones activos
+            document.querySelectorAll('#tabComprasCreditos .filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            let comprasFiltradas = todasComprasCreditos;
+            
+            if (filtro === 'completado') {
+                comprasFiltradas = todasComprasCreditos.filter(c => c.estado === 'completado');
+            } else if (filtro === 'pendiente_usuario') {
+                comprasFiltradas = todasComprasCreditos.filter(c => c.estado === 'pendiente_usuario' || !c.usuario_id);
+            } else if (filtro === 'con_afiliado') {
+                comprasFiltradas = todasComprasCreditos.filter(c => c.codigo_afiliado_usado);
+            }
+            
+            // Re-obtener mapa de usuarios y renderizar
+            cargarComprasCreditos();
         }
 
         // ========================================
